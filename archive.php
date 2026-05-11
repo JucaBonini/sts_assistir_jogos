@@ -48,7 +48,6 @@
                     $escudo_fora = get_post_meta(get_the_ID(), 'escudo_fora', true);
                     $horario = get_post_meta(get_the_ID(), 'horario', true);
                     $onde = get_post_meta(get_the_ID(), 'onde_assistir', true);
-                    $selo = get_post_meta(get_the_ID(), 'tipo_acesso', true);
                     $tipo = wp_get_post_terms(get_the_ID(), 'esporte', array('fields' => 'slugs'))[0] ?? 'esporte';
                     $campeonato = wp_get_post_terms(get_the_ID(), 'campeonato', array('fields' => 'names'))[0] ?? '';
                     
@@ -59,7 +58,6 @@
                         'escudoFora' => $escudo_fora,
                         'horario' => $horario,
                         'onde' => $onde,
-                        'selo' => $selo,
                         'tipo' => $tipo,
                         'campeonato' => $campeonato,
                         'link' => get_the_permalink()

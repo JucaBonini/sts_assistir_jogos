@@ -205,7 +205,6 @@ function renderizar_meta_box_jogo($post) {
     $time_casa_id = get_post_meta($post->ID, 'time_casa_id', true);
     $time_fora_id = get_post_meta($post->ID, 'time_fora_id', true);
     $canais_selecionados = wp_get_post_terms($post->ID, 'canal', array('fields' => 'ids'));
-    $tipo_acesso = get_post_meta($post->ID, 'tipo_acesso', true);
     $link_transmissao = get_post_meta($post->ID, 'link_transmissao', true);
     $escudo_casa = get_post_meta($post->ID, 'escudo_casa', true);
     $escudo_fora = get_post_meta($post->ID, 'escudo_fora', true);
@@ -523,7 +522,7 @@ function salvar_meta_boxes_assistir_jogos($post_id) {
 
     // Campos de texto simples
     $campos_texto = array(
-        'time_casa', 'time_fora', 'escudo_casa', 'escudo_fora', 'data_jogo', 'horario', 'tipo_acesso',
+        'time_casa', 'time_fora', 'escudo_casa', 'escudo_fora', 'data_jogo', 'horario',
         'link_transmissao', 'oddCasa', 'oddEmpate', 'oddFora', 'estadio', 'rodada',
         'cidade_sede', 'pais_sede', 'grupo_copa', 'fase_copa', 'placar_casa', 'placar_fora', 'status_jogo',
         'time_casa_id', 'time_fora_id', 'match_id', 'fase_bracket'

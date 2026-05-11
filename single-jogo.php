@@ -7,7 +7,7 @@
     $canais_nomes = wp_get_post_terms(get_the_ID(), 'canal', array('fields' => 'names'));
     $onde = !empty($canais_nomes) ? implode(', ', $canais_nomes) : 'A definir';
     $categoria = get_post_meta(get_the_ID(), 'categoria', true);
-    $tipo_acesso = get_post_meta(get_the_ID(), 'tipo_acesso', true);
+    $categoria = get_post_meta(get_the_ID(), 'categoria', true);
     $escudo_casa = get_post_meta(get_the_ID(), 'escudo_casa', true);
     $escudo_fora = get_post_meta(get_the_ID(), 'escudo_fora', true);
     $analise = get_post_meta(get_the_ID(), 'analise_jogo', true);
@@ -81,7 +81,7 @@
         </div>
 
         <!-- INFO RÁPIDA -->
-        <div class="grid grid-cols-1 md:grid-cols-3 border-t border-slate-700">
+        <div class="grid grid-cols-1 md:grid-cols-2 border-t border-slate-700">
             <div class="p-4 text-center border-b md:border-b-0 md:border-r border-slate-700">
                 <p class="text-xs text-gray-500 uppercase font-bold mb-1">Onde Assistir</p>
                 <p class="text-laranja font-bold"><?php echo esc_html($onde); ?></p>
@@ -95,10 +95,6 @@
                     </span>
                     Confirmado
                 </span>
-            </div>
-            <div class="p-4 text-center">
-                <p class="text-xs text-gray-500 uppercase font-bold mb-1">Acesso</p>
-                <p class="text-white font-bold"><?php echo $tipo_acesso === 'GRÁTIS' ? '📡 TV Aberta / Grátis' : '🔒 Assinatura / Pago'; ?></p>
             </div>
         </div>
     </header>

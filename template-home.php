@@ -18,7 +18,6 @@ if ($query_jogos->have_posts()) {
             'escudoFora' => get_post_meta(get_the_ID(), 'escudo_fora', true),
             'horario'  => get_post_meta(get_the_ID(), 'horario', true),
             'onde'     => implode(', ', wp_get_post_terms(get_the_ID(), 'canal', array('fields' => 'names'))) ?: 'A definir',
-            'selo'     => get_post_meta(get_the_ID(), 'tipo_acesso', true),
             'tipo'     => wp_get_post_terms(get_the_ID(), 'esporte', array('fields' => 'slugs'))[0] ?? 'futebol',
             'campeonato' => wp_get_post_terms(get_the_ID(), 'campeonato', array('fields' => 'names'))[0] ?? '',
             'link'     => get_the_permalink(),
@@ -269,8 +268,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         filtrados.forEach(jogo => {
             const isFav = favoriteTeam && (jogo.timeCasa.toLowerCase().includes(favoriteTeam.toLowerCase()) || jogo.timeFora.toLowerCase().includes(favoriteTeam.toLowerCase()));
-            const seloClass = jogo.selo === 'PAGO' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' : 'bg-green-500/10 text-green-500 border-green-500/20';
-            const seloIcon = jogo.selo === 'PAGO' ? '<i class="fas fa-lock text-[8px]"></i>' : '<i class="fas fa-broadcast-tower text-[8px]"></i>';
             const borderClass = isFav ? 'border-laranja shadow-[0_0_20px_rgba(249,115,22,0.2)]' : 'border-slate-700/50';
             
             const card = `
@@ -290,9 +287,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <i class="fas fa-trophy text-[8px]"></i> ${jogo.campeonato} ${jogo.rodada ? ' • ' + jogo.rodada : ''}
                             </span>
                         </div>
-                        <span class="${seloClass} border text-[9px] font-black px-2 py-1 rounded-md uppercase flex items-center gap-1">
-                            ${seloIcon} ${jogo.selo}
-                        </span>
                     </div>
 
                     <!-- TIMES -->
