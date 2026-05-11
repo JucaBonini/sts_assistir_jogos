@@ -388,18 +388,21 @@ function renderizar_meta_box_jogo($post) {
         </div>
     </div>
     <hr>
-    <div class="wp-admin-field">
-        <label>Análise Pré-Jogo (Essencial para o AdSense):</label>
-        <div style="margin-bottom: 10px;">
-            <button type="button" id="btn-gerar-ia" class="button button-primary" style="background: #e67e22; border-color: #d35400;">
-                <span class="dashicons dashicons-superhero" style="margin-top: 4px;"></span> ✨ Gerar Análise com IA (Rascunho)
-            </button>
-        </div>
-        <?php wp_editor($analise, 'analise_jogo', array('textarea_rows' => 8)); ?>
-        <p class="description">Clique no botão acima para criar um texto base e depois ajuste conforme necessário.</p>
-    </div>
     <?php
 }
+
+/**
+ * BOTÃO DE GERAR SEO NO TOPO DO EDITOR (Ao lado de Adicionar Mídia)
+ */
+function adicionar_botao_seo_editor() {
+    $screen = get_current_screen();
+    if ( $screen->post_type !== 'jogo' && $screen->post_type !== 'jogo_copa' ) return;
+    
+    echo '<button type="button" id="btn-gerar-ia" class="button" style="background: #e67e22; border-color: #d35400; color: #fff; font-weight: bold; margin-left: 5px;">
+        <span class="dashicons dashicons-superhero" style="margin-top: 4px; font-size: 16px;"></span> ✨ Gerar Texto SEO
+    </button>';
+}
+add_action('media_buttons', 'adicionar_botao_seo_editor');
 
 /**
  * META BOXES PARA BARES
@@ -620,23 +623,81 @@ add_action('admin_footer', function() {
             }
         });
 
-        // GERADOR DE ANÁLISE IA
+        // GERADOR DE TEXTO SEO PROFISSIONAL
         $(document).on('click', '#btn-gerar-ia', function(e) {
             e.preventDefault();
-            var tCasa = $('input[name="time_casa"]').val() || 'Time A';
-            var tFora = $('input[name="time_fora"]').val() || 'Time B';
-            var camp = $('select[name="onde_assistir"] option:selected').text() || 'Campeonato';
             
-            var modelos = [
-                '<p>O duelo entre <strong>'+tCasa+'</strong> e <strong>'+tFora+'</strong> promete fortes emoções pela '+camp+'.</p><p>As duas equipes buscam a vitória para subir na tabela e consolidar sua posição na temporada.</p>',
-                '<p>Hoje tem jogão! <strong>'+tCasa+'</strong> recebe o <strong>'+tFora+'</strong> em uma partida decisiva pela '+camp+'.</p><p>A expectativa é de casa cheia e muita garra dentro de campo.</p>'
-            ];
-            var texto = modelos[Math.floor(Math.random() * modelos.length)];
+            // 1. Capturar Dados
+            var tCasa   = $('input[name="time_casa"]').val() || 'Time A';
+            var tFora   = $('input[name="time_fora"]').val() || 'Time B';
+            var dataRaw = $('input[name="data_jogo"]').val();
+            var hora    = $('input[name="horario"]').val() || '--:--';
+            var estadio = $('input[name="estadio"]').val() || 'Estádio';
+            var rodada  = $('input[name="rodada"]').val() || 'Fase de Grupos';
+            
+            // Canais Selecionados
+            var canais = [];
+            $('input[name="onde_assistir[]"]:checked').each(function(){
+                canais.push($(this).parent().text().trim());
+            });
+            var canaisTxt = canais.length > 0 ? canais.join(', ').replace(/, ([^,]*)$/, ' e $1') : 'emissoras oficiais';
 
-            if (typeof tinymce !== 'undefined' && tinymce.get('analise_jogo')) {
-                tinymce.get('analise_jogo').setContent(texto);
+            // Campeonato (Busca no checklist de taxonomia)
+            var camp = $('#campeonatochecklist input:checked').first().parent().text().trim() || 'Futebol';
+
+            // 2. Formatar Data
+            var dataFormatada = 'Data Indisponível';
+            if (dataRaw) {
+                var dataObj = new Date(dataRaw + 'T12:00:00');
+                var dias = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+                var meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+                dataFormatada = dias[dataObj.getDay()] + ', ' + dataObj.getDate() + ' ' + meses[dataObj.getMonth()] + ' ' + dataObj.getFullYear();
+            }
+
+            // 3. Mapeamento de Direitos por Competição
+            var direitosMap = {
+                'Brasileirão': 'Globosat (Premiere, SporTV, Globo), Grupo Record (R7, TV Record), Amazon Prime Video, CazéTV e YouTube.',
+                'Copa do Brasil': 'Globo, SporTV, Premiere e Amazon Prime Video.',
+                'Libertadores': 'Globo, ESPN, Disney+ e Paramount+.',
+                'Champions League': 'SBT, TNT Sports e Max.',
+                'Premier League': 'ESPN e Disney+.'
+            };
+            var direitos = direitosMap[camp] || 'emissoras detentoras dos direitos oficiais.';
+
+            // 4. Montar o Template HTML
+            var html = `
+<h3>Aviso Legal de Conteúdo:</h3>
+<p>As listas publicadas de jogos em directo, re-transmitidos e por requisição e eventos publicados neste website são transmitidos pelos portadores oficiais de direitos televisivos. Estão disponíveis em várias plataformas como TV terrestre, rádio, cabo, satélite, IPTV e aplicações móveis e de desktop. Quando possível, iremos providenciar links para os eventos disponíveis nas plataformas oferecidas pelos transmissores oficiais. Por favor note que, na maioria dos casos, uma subscrição digital ou autenticação com um fornecedor de Internet/TV pode ser necessária. Tentaremos fornecer uma transmissão o mais fiel e detalhada possível. No entanto, os horários de transmissão estão sujeitos a ser modificados a qualquer altura. Se faltar informação ou esta estiver incorrecta, por favor diga-nos.</p>
+
+<h3>Detalhes do jogo e informações de transmissão</h3>
+<p><strong>${tCasa} e ${tFora}</strong> joga-se em <strong>${dataFormatada}</strong>, com o pontapé de saída marcado para <strong>${hora}</strong>.</p>
+<p>A partida está agendada para a <strong>${rodada}</strong> durante a temporada de ${new Date().getFullYear()}.</p>
+<ul>
+    <li>As escalações oficiais de ambas as equipas ficam disponíveis cerca de uma hora antes do apito inicial.</li>
+    <li>Os resultados ao vivo, os acontecimentos do jogo e as estatísticas são atualizados em tempo real assim que o jogo começa.</li>
+    <li>A cobertura da partida inclui listas de TV confirmadas, opções de streaming e atualizações ao vivo.</li>
+    <li>Todas as emissoras listadas são detentoras oficiais dos direitos desta partida.</li>
+    <li>Os horários de início são apresentados na sua hora local.</li>
+</ul>
+
+<h3>Como assistir ${tCasa} x ${tFora} no Brasil</h3>
+<p>No Brasil, a partida será exibida ao vivo por <strong>${canaisTxt}</strong>.</p>
+
+<h3>Como assistir ${tCasa} x ${tFora} em todo o mundo</h3>
+<p>Os adeptos podem ver o jogo em direto na TV e online através das emissoras oficiais. Use a programação de TV acima para encontrar a transmissão oficial ao vivo disponível na sua localização.</p>
+
+<h3>Como assistir a competição ${camp}</h3>
+<p>No território brasileiro, pode assistir aos jogos da competição <strong>${camp}</strong> ao vivo por: ${direitos}</p>
+<p><em>Mais detalhes: Como assistir à ${camp} no Brasil.</em></p>
+            `;
+
+            // 5. Injetar no Editor (Detecta Main Content ou Custom Field)
+            var targetEditor = 'content'; // Alvo principal agora é o corpo do post
+            
+            if (typeof tinymce !== 'undefined' && tinymce.get(targetEditor)) {
+                tinymce.get(targetEditor).setContent(html);
             } else {
-                $('#analise_jogo').val(texto);
+                $('#' + targetEditor).val(html);
             }
         });
     });
