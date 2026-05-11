@@ -216,7 +216,6 @@ function renderizar_meta_box_jogo($post) {
     $placar_fora = get_post_meta($post->ID, 'placar_fora', true);
     $status_jogo = get_post_meta($post->ID, 'status_jogo', true) ?: 'Agendado';
     $analise = get_post_meta($post->ID, 'analise_jogo', true);
-    ?>
     $is_copa = ($post->post_type === 'jogo_copa');
     ?>
     <style>
