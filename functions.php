@@ -217,19 +217,82 @@ function renderizar_meta_box_jogo($post) {
     $status_jogo = get_post_meta($post->ID, 'status_jogo', true) ?: 'Agendado';
     $analise = get_post_meta($post->ID, 'analise_jogo', true);
     ?>
-    <style>.wp-admin-field { margin-bottom: 15px; } .wp-admin-field label { display: block; font-weight: bold; margin-bottom: 5px; } .wp-admin-field input, .wp-admin-field select { width: 100%; padding: 8px; }</style>
+    $is_copa = ($post->post_type === 'jogo_copa');
+    ?>
+    <style>
+        .wp-admin-field { margin-bottom: 15px; } 
+        .wp-admin-field label { display: block; font-weight: bold; margin-bottom: 5px; } 
+        .wp-admin-field input, .wp-admin-field select { width: 100%; padding: 8px; }
+        .copa-only { background: #fff9e6; padding: 15px; border: 1px solid #ffeeba; border-radius: 8px; margin-bottom: 20px; }
+    </style>
+
+    <?php if ($is_copa) : ?>
+        <div class="copa-only">
+            <h3 style="margin-top:0;">🏆 Dados Exclusivos da Copa</h3>
+            <div class="wp-admin-field">
+                <label>Time Casa (Selecione a Seleção):</label>
+                <select name="time_casa_id" style="width:100%;">
+                    <option value="">-- Selecione uma Seleção Cadastrada --</option>
+                    <?php
+                    $selecoes = get_posts(array('post_type' => 'selecao', 'posts_per_page' => -1));
+                    foreach ($selecoes as $sel) {
+                        echo '<option value="'.$sel->ID.'" '.selected($time_casa_id, $sel->ID, false).'>'.$sel->post_title.'</option>';
+                    }
+                    ?>
+                </select>
+            </div>
+            <div class="wp-admin-field">
+                <label>Time Fora (Selecione a Seleção):</label>
+                <select name="time_fora_id" style="width:100%;">
+                    <option value="">-- Selecione uma Seleção Cadastrada --</option>
+                    <?php
+                    foreach ($selecoes as $sel) {
+                        echo '<option value="'.$sel->ID.'" '.selected($time_fora_id, $sel->ID, false).'>'.$sel->post_title.'</option>';
+                    }
+                    ?>
+                </select>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <div class="wp-admin-field" style="flex:1;">
+                    <label>Cidade Sede:</label>
+                    <input type="text" name="cidade_sede" value="<?php echo esc_attr(get_post_meta($post->ID, 'cidade_sede', true)); ?>" placeholder="Ex: New York">
+                </div>
+                <div class="wp-admin-field" style="flex:1;">
+                    <label>País Sede:</label>
+                    <select name="pais_sede">
+                        <option value="">Nenhum / Outros</option>
+                        <option value="EUA" <?php selected(get_post_meta($post->ID, 'pais_sede', true), 'EUA'); ?>>🇺🇸 EUA</option>
+                        <option value="México" <?php selected(get_post_meta($post->ID, 'pais_sede', true), 'México'); ?>>🇲🇽 México</option>
+                        <option value="Canadá" <?php selected(get_post_meta($post->ID, 'pais_sede', true), 'Canadá'); ?>>🇨🇦 Canadá</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <div class="wp-admin-field" style="flex:1;">
+                    <label>Grupo:</label>
+                    <input type="text" name="grupo_copa" value="<?php echo esc_attr(get_post_meta($post->ID, 'grupo_copa', true)); ?>" placeholder="Ex: Grupo A">
+                </div>
+                <div class="wp-admin-field" style="flex:1;">
+                    <label>Fase do Torneio:</label>
+                    <select name="fase_copa">
+                        <option value="Fase de Grupos" <?php selected(get_post_meta($post->ID, 'fase_copa', true), 'Fase de Grupos'); ?>>Fase de Grupos</option>
+                        <option value="Rodada de 32" <?php selected(get_post_meta($post->ID, 'fase_copa', true), 'Rodada de 32'); ?>>Rodada de 32</option>
+                        <option value="Oitavas de Final" <?php selected(get_post_meta($post->ID, 'fase_copa', true), 'Oitavas de Final'); ?>>Oitavas de Final</option>
+                        <option value="Quartas de Final" <?php selected(get_post_meta($post->ID, 'fase_copa', true), 'Quartas de Final'); ?>>Quartas de Final</option>
+                        <option value="Semifinal" <?php selected(get_post_meta($post->ID, 'fase_copa', true), 'Semifinal'); ?>>Semifinal</option>
+                        <option value="Final" <?php selected(get_post_meta($post->ID, 'fase_copa', true), 'Final'); ?>>Final</option>
+                    </select>
+                </div>
+            </div>
+            <div class="wp-admin-field">
+                <label>ID da Partida (Ex: J73):</label>
+                <input type="text" name="match_id" value="<?php echo esc_attr(get_post_meta($post->ID, 'match_id', true)); ?>" placeholder="Ex: J73">
+            </div>
+        </div>
+    <?php endif; ?>
+
     <div class="wp-admin-field">
-        <label>Time Casa (Selecione):</label>
-        <select name="time_casa_id" style="width:100%;">
-            <option value="">-- Selecione uma Seleção Cadastrada --</option>
-            <?php
-            $selecoes = get_posts(array('post_type' => 'selecao', 'posts_per_page' => -1));
-            foreach ($selecoes as $sel) {
-                echo '<option value="'.$sel->ID.'" '.selected($time_casa_id, $sel->ID, false).'>'.$sel->post_title.'</option>';
-            }
-            ?>
-        </select>
-        <p class="description">Ou digite manualmente abaixo se não estiver cadastrada:</p>
+        <label>Time Casa (Nome):</label>
         <input type="text" name="time_casa" value="<?php echo esc_attr($time_casa); ?>" placeholder="Ex: Flamengo">
     </div>
     <div class="wp-admin-field">
@@ -240,16 +303,7 @@ function renderizar_meta_box_jogo($post) {
         </div>
     </div>
     <div class="wp-admin-field">
-        <label>Time Fora (Selecione):</label>
-        <select name="time_fora_id" style="width:100%;">
-            <option value="">-- Selecione uma Seleção Cadastrada --</option>
-            <?php
-            foreach ($selecoes as $sel) {
-                echo '<option value="'.$sel->ID.'" '.selected($time_fora_id, $sel->ID, false).'>'.$sel->post_title.'</option>';
-            }
-            ?>
-        </select>
-        <p class="description">Ou digite manualmente abaixo:</p>
+        <label>Time Fora (Nome):</label>
         <input type="text" name="time_fora" value="<?php echo esc_attr($time_fora); ?>" placeholder="Ex: Palmeiras">
     </div>
     <div class="wp-admin-field">
@@ -287,43 +341,7 @@ function renderizar_meta_box_jogo($post) {
     </div>
     <div class="wp-admin-field">
         <label>Estádio / Local:</label>
-        <input type="text" name="estadio" value="<?php echo esc_attr(get_post_meta($post->ID, 'estadio', true)); ?>" placeholder="Ex: Maracanã ou SoFi Stadium">
-    </div>
-    <div style="display:flex; gap:10px;">
-        <div class="wp-admin-field" style="flex:1;">
-            <label>Cidade Sede (Copa):</label>
-            <input type="text" name="cidade_sede" value="<?php echo esc_attr(get_post_meta($post->ID, 'cidade_sede', true)); ?>" placeholder="Ex: New York">
-        </div>
-        <div class="wp-admin-field" style="flex:1;">
-            <label>País Sede (Copa):</label>
-            <select name="pais_sede">
-                <option value="">Nenhum / Outros</option>
-                <option value="EUA" <?php selected(get_post_meta($post->ID, 'pais_sede', true), 'EUA'); ?>>🇺🇸 EUA</option>
-                <option value="México" <?php selected(get_post_meta($post->ID, 'pais_sede', true), 'México'); ?>>🇲🇽 México</option>
-                <option value="Canadá" <?php selected(get_post_meta($post->ID, 'pais_sede', true), 'Canadá'); ?>>🇨🇦 Canadá</option>
-            </select>
-        </div>
-    </div>
-    <div style="display:flex; gap:10px;">
-        <div class="wp-admin-field" style="flex:1;">
-            <label>Grupo (Copa):</label>
-            <input type="text" name="grupo_copa" value="<?php echo esc_attr(get_post_meta($post->ID, 'grupo_copa', true)); ?>" placeholder="Ex: Grupo A">
-        </div>
-        <div class="wp-admin-field" style="flex:1;">
-            <label>Fase:</label>
-            <select name="fase_copa">
-                <option value="Fase de Grupos" <?php selected(get_post_meta($post->ID, 'fase_copa', true), 'Fase de Grupos'); ?>>Fase de Grupos</option>
-                <option value="Rodada de 32" <?php selected(get_post_meta($post->ID, 'fase_copa', true), 'Rodada de 32'); ?>>Rodada de 32</option>
-                <option value="Oitavas de Final" <?php selected(get_post_meta($post->ID, 'fase_copa', true), 'Oitavas de Final'); ?>>Oitavas de Final</option>
-                <option value="Quartas de Final" <?php selected(get_post_meta($post->ID, 'fase_copa', true), 'Quartas de Final'); ?>>Quartas de Final</option>
-                <option value="Semifinal" <?php selected(get_post_meta($post->ID, 'fase_copa', true), 'Semifinal'); ?>>Semifinal</option>
-                <option value="Final" <?php selected(get_post_meta($post->ID, 'fase_copa', true), 'Final'); ?>>Final</option>
-            </select>
-        </div>
-    </div>
-    <div class="wp-admin-field">
-        <label>ID da Partida (Ex: J73, J104):</label>
-        <input type="text" name="match_id" value="<?php echo esc_attr(get_post_meta($post->ID, 'match_id', true)); ?>" placeholder="Ex: J73">
+        <input type="text" name="estadio" value="<?php echo esc_attr(get_post_meta($post->ID, 'estadio', true)); ?>" placeholder="Ex: Maracanã">
     </div>
     <div class="wp-admin-field">
         <label>Onde Assistir (Selecione um ou mais):</label>
