@@ -664,31 +664,33 @@ add_action('admin_footer', function() {
             };
             var direitos = direitosMap[camp] || 'emissoras detentoras dos direitos oficiais.';
 
-            // 4. Montar o Template HTML
+            // 4. Montar o Template HTML Final (Com as novas palavras do usuário)
             var html = `
-<h3>Aviso Legal de Conteúdo:</h3>
-<p>As listas publicadas de jogos em directo, re-transmitidos e por requisição e eventos publicados neste website são transmitidos pelos portadores oficiais de direitos televisivos. Estão disponíveis em várias plataformas como TV terrestre, rádio, cabo, satélite, IPTV e aplicações móveis e de desktop. Quando possível, iremos providenciar links para os eventos disponíveis nas plataformas oferecidas pelos transmissores oficiais. Por favor note que, na maioria dos casos, uma subscrição digital ou autenticação com um fornecedor de Internet/TV pode ser necessária. Tentaremos fornecer uma transmissão o mais fiel e detalhada possível. No entanto, os horários de transmissão estão sujeitos a ser modificados a qualquer altura. Se faltar informação ou esta estiver incorrecta, por favor diga-nos.</p>
+<h2>Detalhes do Jogo</h2>
+<p><strong>Jogo:</strong> ${tCasa} x ${tFora}</p>
+<p><strong>Data:</strong> ${dataFormatada}</p>
+<p><strong>Horário de início:</strong> ${hora}</p>
+<p><strong>Rodada:</strong> ${rodada}</p>
 
-<h3>Detalhes do jogo e informações de transmissão</h3>
-<p><strong>${tCasa} e ${tFora}</strong> joga-se em <strong>${dataFormatada}</strong>, com o pontapé de saída marcado para <strong>${hora}</strong>.</p>
-<p>A partida está agendada para a <strong>${rodada}</strong> durante a temporada de ${new Date().getFullYear()}.</p>
-<ul>
-    <li>As escalações oficiais de ambas as equipas ficam disponíveis cerca de uma hora antes do apito inicial.</li>
-    <li>Os resultados ao vivo, os acontecimentos do jogo e as estatísticas são atualizados em tempo real assim que o jogo começa.</li>
-    <li>A cobertura da partida inclui listas de TV confirmadas, opções de streaming e atualizações ao vivo.</li>
-    <li>Todas as emissoras listadas são detentoras oficiais dos direitos desta partida.</li>
-    <li>Os horários de início são apresentados na sua hora local.</li>
-</ul>
+<p>As escalações oficiais de ambas as equipes serão divulgadas cerca de uma hora antes do apito inicial.</p>
+<p>Os resultados ao vivo, os lances do jogo e as estatísticas são atualizados em tempo real assim que a partida começa.</p>
+<p>A cobertura da partida inclui listas confirmadas de canais de TV, opções de streaming e atualizações ao vivo.</p>
+<p>Todas as emissoras listadas são detentoras oficiais dos direitos desta partida.</p>
 
 <h3>Como assistir ${tCasa} x ${tFora} no Brasil</h3>
-<p>No Brasil, a partida será exibida ao vivo por <strong>${canaisTxt}</strong>.</p>
+<p>No Brasil, o jogo será exibido ao vivo em: <strong>${canaisTxt}</strong>.</p>
 
-<h3>Como assistir ${tCasa} x ${tFora} em todo o mundo</h3>
-<p>Os adeptos podem ver o jogo em direto na TV e online através das emissoras oficiais. Use a programação de TV acima para encontrar a transmissão oficial ao vivo disponível na sua localização.</p>
+<h3>Como assistir ${tCasa} x ${tFora} no resto do mundo</h3>
+<p>Os torcedores podem assistir ao jogo ao vivo na TV e online através das emissoras oficiais. Use a grade de programação acima para encontrar a transmissão oficial ao vivo disponível na sua localização.</p>
 
-<h3>Como assistir a competição ${camp}</h3>
-<p>No território brasileiro, pode assistir aos jogos da competição <strong>${camp}</strong> ao vivo por: ${direitos}</p>
-<p><em>Mais detalhes: Como assistir à ${camp} no Brasil.</em></p>
+<h3>Como assistir à competição ${camp}</h3>
+<p>No território brasileiro, você pode assistir aos jogos da competição <strong>${camp}</strong> ao vivo por: <strong>${direitos}</strong></p>
+<p><em>Mais detalhes: Como assistir ao ${camp} no Brasil.</em></p>
+
+<hr />
+<h3>Aviso Legal de Conteúdo</h3>
+<p>As listas publicadas de jogos ao vivo, reprises, eventos sob demanda e outras programações exibidas neste site são transmitidas pelos detentores oficiais dos direitos de transmissão televisiva. Estes conteúdos estão disponíveis em diversas plataformas, como TV aberta, rádio, TV por assinatura, satélite, IPTV, aplicativos de celular e programas de computador. Sempre que possível, forneceremos links para os eventos disponíveis nas plataformas oferecidas pelas emissoras oficiais.</p>
+<p>Por favor, lembre-se de que, na maioria dos casos, pode ser necessária uma assinatura digital ou autenticação com um provedor de internet/TV. Tentaremos fornecer uma transmissão o mais fiel e detalhada possível. No entanto, os horários de transmissão estão sujeitos a alterações a qualquer momento. Se faltar informação ou ela estiver incorreta, por favor, nos avise.</p>
             `;
 
             // 5. Injetar no Editor (Detecta Main Content ou Custom Field)
@@ -1143,6 +1145,19 @@ function get_asna_thumbnail($size = 'full', $class = '') {
         echo '<img src="' . esc_url($fallback_url) . '" class="' . esc_attr($class) . '" alt="' . esc_attr(get_the_title()) . '" loading="lazy">';
     }
 }
+
+/**
+ * CONTEÚDO PADRÃO PARA NOVOS JOGOS
+ */
+function set_default_jogo_content($content, $post) {
+    if ( $post->post_type === 'jogo' || $post->post_type === 'jogo_copa' ) {
+        if ( empty($content) ) {
+            $content = "<h2>Detalhes do Jogo</h2>\n<p>Jogo: [TIME_CASA] x [TIME_FORA]</p>\n<p>Data: [DATA_JOGO]</p>\n<p>Horário de início: [HORARIO]</p>\n<p>Rodada: [RODADA]</p>\n\n<p>As escalações oficiais de ambas as equipes serão divulgadas cerca de uma hora antes do apito inicial.</p>\n<p>Os resultados ao vivo, os lances do jogo e as estatísticas são atualizados em tempo real assim que a partida começa.</p>\n<p>A cobertura da partida inclui listas confirmadas de canais de TV, opções de streaming e atualizações ao vivo.</p>\n<p>Todas as emissoras listadas são detentoras oficiais dos direitos desta partida.</p>\n\n<h3>Como assistir [TIME_CASA] x [TIME_FORA] no Brasil</h3>\n<p>No Brasil, o jogo será exibido ao vivo em: [CANAIS_BRASIL]</p>\n\n<h3>Como assistir [TIME_CASA] x [TIME_FORA] no resto do mundo</h3>\n<p>Os torcedores podem assistir ao jogo ao vivo na TV e online através das emissoras oficiais. Use a grade de programação acima para encontrar a transmissão oficial ao vivo disponível na sua localização.</p>\n\n<h3>Como assistir à competição [CAMPEONATO]</h3>\n<p>No território brasileiro, você pode assistir aos jogos da competição [CAMPEONATO] ao vivo por: [DIREITOS_TV]</p>\n<p><em>Mais detalhes: Como assistir ao [CAMPEONATO] no Brasil.</em></p>\n\n<hr />\n<h3>Aviso Legal de Conteúdo</h3>\n<p>As listas publicadas de jogos ao vivo, reprises, eventos sob demanda e outras programações exibidas neste site são transmitidas pelos detentores oficiais dos direitos de transmissão televisiva. Estes conteúdos estão disponíveis em diversas plataformas, como TV aberta, rádio, TV por assinatura, satélite, IPTV, aplicativos de celular e programas de computador. Sempre que possível, forneceremos links para os eventos disponíveis nas plataformas oferecidas pelas emissoras oficiais.</p>\n<p>Por favor, lembre-se de que, na maioria dos caso, pode ser necessária uma assinatura digital ou autenticação com um provedor de internet/TV. Tentaremos fornecer uma transmissão o mais fiel e detalhada possível. No entanto, os horários de transmissão estão sujeitos a alterações a qualquer momento. Se faltar informação ou ela estiver incorreta, por favor, nos avise.</p>";
+        }
+    }
+    return $content;
+}
+add_filter('default_content', 'set_default_jogo_content', 10, 2);
 
 
 
