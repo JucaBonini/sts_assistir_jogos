@@ -361,13 +361,7 @@ function renderizar_meta_box_jogo($post) {
         <label>Rodada (Opcional):</label>
         <input type="text" name="rodada" value="<?php echo esc_attr(get_post_meta($post->ID, 'rodada', true)); ?>" placeholder="Ex: 4ª Rodada">
     </div>
-    <div class="wp-admin-field">
-        <label>Tipo de Acesso:</label>
-        <select name="tipo_acesso">
-            <option value="GRÁTIS" <?php selected($tipo_acesso, 'GRÁTIS'); ?>>📡 GRÁTIS</option>
-            <option value="PAGO" <?php selected($tipo_acesso, 'PAGO'); ?>>🔒 PAGO</option>
-        </select>
-    </div>
+
     <hr>
     <div class="wp-admin-field">
         <label>Link da Transmissão (Botão):</label>
