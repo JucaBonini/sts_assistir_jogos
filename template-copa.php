@@ -499,22 +499,39 @@ if (!empty($jogos_copa)) {
                                         <a href="<?php echo $link_casa; ?>" class="text-xs font-black text-center uppercase tracking-tighter hover:text-laranja transition-colors"><?php echo $nome_casa; ?></a>
                                     </div>
                                     
-                                    <div class="flex flex-col items-center">
-                                        <?php if ($jogo['status'] === 'Agendado') : ?>
-                                            <div class="text-laranja font-black italic text-xl">VS</div>
-                                        <?php else : ?>
-                                            <div class="flex items-center gap-2">
-                                                <span class="text-3xl font-black tabular-nums"><?php echo $jogo['placarCasa']; ?></span>
-                                                <span class="text-laranja font-black">-</span>
-                                                <span class="text-3xl font-black tabular-nums"><?php echo $jogo['placarFora']; ?></span>
+                                            <div class="flex flex-col items-center">
+                                                <?php if ($jogo['status'] === 'Agendado') : ?>
+                                                    <?php 
+                                                    // Regra Automática do AO VIVO (5 min antes até 120 min depois)
+                                                    $timestamp_jogo = strtotime($jogo['data'] . ' ' . str_replace('h', ':', $jogo['horario']));
+                                                    $agora = time();
+                                                    $diff_minutos = ($agora - $timestamp_jogo) / 60;
+                                                    
+                                                    if ($diff_minutos >= -5 && $diff_minutos <= 120) : ?>
+                                                        <div class="flex items-center gap-2 mb-2">
+                                                            <span class="text-3xl font-black tabular-nums"><?php echo $jogo['placarCasa']; ?></span>
+                                                            <span class="text-laranja font-black">-</span>
+                                                            <span class="text-3xl font-black tabular-nums"><?php echo $jogo['placarFora']; ?></span>
+                                                        </div>
+                                                        <span class="flex items-center gap-1 text-[8px] font-bold text-red-500 animate-pulse">
+                                                            <span class="w-1.5 h-1.5 bg-red-500 rounded-full"></span> AO VIVO
+                                                        </span>
+                                                    <?php else : ?>
+                                                        <div class="text-laranja font-black italic text-xl">VS</div>
+                                                    <?php endif; ?>
+                                                <?php else : ?>
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="text-3xl font-black tabular-nums"><?php echo $jogo['placarCasa']; ?></span>
+                                                        <span class="text-laranja font-black">-</span>
+                                                        <span class="text-3xl font-black tabular-nums"><?php echo $jogo['placarFora']; ?></span>
+                                                    </div>
+                                                    <?php if ($jogo['status'] === 'Ao Vivo') : ?>
+                                                        <span class="flex items-center gap-1 text-[8px] font-bold text-red-500 animate-pulse mt-1">
+                                                            <span class="w-1.5 h-1.5 bg-red-500 rounded-full"></span> AO VIVO
+                                                        </span>
+                                                    <?php endif; ?>
+                                                <?php endif; ?>
                                             </div>
-                                            <?php if ($jogo['status'] === 'Ao Vivo') : ?>
-                                                <span class="flex items-center gap-1 text-[8px] font-bold text-red-500 animate-pulse mt-1">
-                                                    <span class="w-1.5 h-1.5 bg-red-500 rounded-full"></span> AO VIVO
-                                                </span>
-                                            <?php endif; ?>
-                                        <?php endif; ?>
-                                    </div>
 
                                     <div class="flex flex-col items-center gap-2 flex-1">
                                         <a href="<?php echo $link_fora; ?>">

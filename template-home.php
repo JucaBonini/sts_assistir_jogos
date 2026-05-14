@@ -22,6 +22,7 @@ if ($query_jogos->have_posts()) {
             'campeonato' => wp_get_post_terms(get_the_ID(), 'campeonato', array('fields' => 'names'))[0] ?? '',
             'link'     => get_the_permalink(),
             'data'     => get_post_meta(get_the_ID(), 'data_jogo', true) ?: get_the_date('Y-m-d'),
+            'status'   => get_post_meta(get_the_ID(), 'status_jogo', true) ?: 'Agendado',
             'oddCasa'  => get_post_meta(get_the_ID(), 'oddCasa', true) ?: '-',
             'oddEmpate' => get_post_meta(get_the_ID(), 'oddEmpate', true) ?: '-',
             'oddFora'  => get_post_meta(get_the_ID(), 'oddFora', true) ?: '-',
@@ -202,6 +203,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function renderJogos() {
         const favoriteTeam = localStorage.getItem('meuTimeFavorito') || '';
+        const agora = new Date();
         
         // Sincronizar UI do Favorito
         const inputArea = document.getElementById('favorito-input-area');
@@ -270,9 +272,25 @@ document.addEventListener('DOMContentLoaded', function() {
             const isFav = favoriteTeam && (jogo.timeCasa.toLowerCase().includes(favoriteTeam.toLowerCase()) || jogo.timeFora.toLowerCase().includes(favoriteTeam.toLowerCase()));
             const borderClass = isFav ? 'border-laranja shadow-[0_0_20px_rgba(249,115,22,0.2)]' : 'border-slate-700/50';
             
+            // Lógica de badge AO VIVO
+            let statusBadge = '';
+            if (jogo.status === 'Ao Vivo') {
+                statusBadge = '<span class="absolute top-3 right-3 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded animate-pulse z-20 shadow-lg shadow-red-600/50 flex items-center gap-1"><i class="fas fa-circle text-[6px]"></i> AO VIVO</span>';
+            } else if (jogo.horario && jogo.data) {
+                const [h, m] = jogo.horario.replace('h', ':').split(':');
+                const [ano, mes, dia] = jogo.data.split('-');
+                const d = new Date(ano, mes - 1, dia, h, m, 0);
+                const diff = (agora - d) / 60000;
+                if (diff >= -5 && diff <= 120) {
+                    statusBadge = '<span class="absolute top-3 right-3 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded animate-pulse z-20 shadow-lg shadow-red-600/50 flex items-center gap-1"><i class="fas fa-circle text-[6px]"></i> AO VIVO</span>';
+                }
+            }
+
             const card = `
                 <div class="bg-slate-800/40 rounded-3xl p-6 border ${borderClass} hover:border-laranja/30 transition-all group relative flex flex-col h-full">
                     
+                    ${statusBadge}
+
                     ${isFav ? `
                         <div class="absolute -top-2 -right-2 bg-laranja text-white text-[8px] font-black px-2 py-1 rounded-lg shadow-lg z-10 flex items-center gap-1 animate-bounce">
                             <i class="fas fa-star"></i> SEU TIME
