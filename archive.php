@@ -70,7 +70,7 @@
                         'oddCasa' => get_post_meta(get_the_ID(), 'oddCasa', true) ?: '-',
                         'oddEmpate' => get_post_meta(get_the_ID(), 'oddEmpate', true) ?: '-',
                         'oddFora' => get_post_meta(get_the_ID(), 'oddFora', true) ?: '-',
-                        'selo' => get_post_meta(get_the_ID(), 'selo_transmissao', true) ?: 'PAGO'
+                        'selo' => ''
                     );
                 endwhile; ?>
                 
@@ -80,6 +80,92 @@
 
                 <script>
                     window.jogosData = <?php echo json_encode($jogos_data); ?>;
+
+                    function renderJogos() {
+                        const container = document.getElementById('cards-container');
+                        if (!container || !window.jogosData) return;
+
+                        const agora = new Date();
+                        const timeFav = localStorage.getItem('time_favorito') ? localStorage.getItem('time_favorito').toLowerCase().trim() : null;
+
+                        container.innerHTML = window.jogosData.map(jogo => {
+                            const isFav = timeFav && (jogo.timeCasa.toLowerCase().includes(timeFav) || jogo.timeFora.toLowerCase().includes(timeFav));
+                            
+                            // Lógica de badge AO VIVO
+                            let statusBadge = '';
+                            if (jogo.status === 'Ao Vivo') {
+                                statusBadge = '<span class="absolute top-3 right-3 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded animate-pulse z-20 shadow-lg shadow-red-600/50 flex items-center gap-1"><i class="fas fa-circle text-[6px]"></i> AO VIVO</span>';
+                            } else if (jogo.horario && jogo.data) {
+                                const [h, m] = jogo.horario.replace('h', ':').split(':');
+                                const [ano, mes, dia] = jogo.data.split('-');
+                                const d = new Date(ano, mes - 1, dia, h, m, 0);
+                                const diff = (agora - d) / 60000;
+                                if (diff >= -5 && diff <= 120) {
+                                    statusBadge = '<span class="absolute top-3 right-3 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded animate-pulse z-20 shadow-lg shadow-red-600/50 flex items-center gap-1"><i class="fas fa-circle text-[6px]"></i> AO VIVO</span>';
+                                }
+                            }
+
+                            return `
+                                <div class="bg-slate-800/40 rounded-3xl p-6 border border-slate-700 hover:border-laranja/30 transition-all group relative flex flex-col h-full">
+                                    ${statusBadge}
+                                    <div class="flex justify-between items-start mb-6">
+                                        <div class="flex flex-wrap gap-2">
+                                            <span class="bg-slate-700/50 text-gray-400 text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-wider">${jogo.tipo}</span>
+                                            <span class="bg-laranja/10 text-laranja text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-wider flex items-center gap-1">
+                                                <i class="fas fa-trophy text-[8px]"></i> ${jogo.campeonato}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center justify-between gap-4 mb-8">
+                                        <div class="flex-1 flex flex-col items-center text-center">
+                                            <div class="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center p-3 mb-3 border border-slate-700 group-hover:border-laranja/50 transition-colors">
+                                                <img src="${jogo.escudoCasa}" alt="${jogo.timeCasa}" class="w-full h-full object-contain" onerror="this.src='<?php echo get_template_directory_uri(); ?>/assets/images/logtipo_2.webp'">
+                                            </div>
+                                            <span class="text-xs font-bold text-white uppercase tracking-tighter line-clamp-1">${jogo.timeCasa}</span>
+                                        </div>
+
+                                        <div class="flex flex-col items-center">
+                                            <div class="bg-slate-900 px-4 py-2 rounded-xl border border-slate-700 shadow-inner">
+                                                <span class="text-laranja font-black text-lg tabular-nums tracking-widest">${jogo.horario}</span>
+                                            </div>
+                                            <span class="text-[9px] text-gray-500 font-bold uppercase mt-2">Hoje</span>
+                                        </div>
+
+                                        <div class="flex-1 flex flex-col items-center text-center">
+                                            <div class="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center p-3 mb-3 border border-slate-700 group-hover:border-laranja/50 transition-colors">
+                                                <img src="${jogo.escudoFora}" alt="${jogo.timeFora}" class="w-full h-full object-contain" onerror="this.src='<?php echo get_template_directory_uri(); ?>/assets/images/logtipo_2.webp'">
+                                            </div>
+                                            <span class="text-xs font-bold text-white uppercase tracking-tighter line-clamp-1">${jogo.timeFora}</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-auto space-y-4">
+                                        <div class="flex items-center justify-between text-[10px] text-gray-400 font-medium px-1">
+                                            <div class="flex items-center gap-2">
+                                                <i class="fas fa-tv text-laranja"></i>
+                                                <span class="truncate max-w-[140px]">${jogo.onde}</span>
+                                            </div>
+                                            <div class="flex gap-1">
+                                                <span class="text-laranja font-black">${jogo.oddCasa}</span>
+                                                <span class="text-gray-600">|</span>
+                                                <span class="text-white font-black">${jogo.oddEmpate}</span>
+                                                <span class="text-gray-600">|</span>
+                                                <span class="text-laranja font-black">${jogo.oddFora}</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <a href="${jogo.link}" class="w-full bg-slate-700 hover:bg-laranja text-white text-[11px] font-black py-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group/btn shadow-lg hover:shadow-laranja/20 uppercase">
+                                            Assistir Agora
+                                            <i class="fas fa-play text-[8px] group-hover/btn:translate-x-1 transition-transform"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+
+                    document.addEventListener('DOMContentLoaded', renderJogos);
                 </script>
 
             <?php else : ?>

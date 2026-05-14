@@ -23,6 +23,8 @@ if ($query_jogos->have_posts()) {
             'link'     => get_the_permalink(),
             'data'     => get_post_meta(get_the_ID(), 'data_jogo', true) ?: get_the_date('Y-m-d'),
             'status'   => get_post_meta(get_the_ID(), 'status_jogo', true) ?: 'Agendado',
+            'placarCasa' => get_post_meta(get_the_ID(), 'placar_casa', true),
+            'placarFora' => get_post_meta(get_the_ID(), 'placar_fora', true),
             'oddCasa'  => get_post_meta(get_the_ID(), 'oddCasa', true) ?: '-',
             'oddEmpate' => get_post_meta(get_the_ID(), 'oddEmpate', true) ?: '-',
             'oddFora'  => get_post_meta(get_the_ID(), 'oddFora', true) ?: '-',
@@ -307,13 +309,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     </div>
 
-                    <!-- TIMES -->
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="flex -space-x-2">
-                            <img src="${jogo.escudoCasa}" class="w-8 h-8 rounded-full border-2 border-slate-800 bg-white p-1 object-contain">
-                            <img src="${jogo.escudoFora}" class="w-8 h-8 rounded-full border-2 border-slate-800 bg-white p-1 object-contain">
+                    <!-- TIMES E PLACAR -->
+                    <div class="flex items-center justify-between gap-3 mb-6">
+                        <div class="flex items-center gap-3">
+                            <div class="flex -space-x-2">
+                                <img src="${jogo.escudoCasa}" class="w-8 h-8 rounded-full border-2 border-slate-800 bg-white p-1 object-contain" onerror="this.src='<?php echo get_template_directory_uri(); ?>/assets/images/logtipo_2.webp'">
+                                <img src="${jogo.escudoFora}" class="w-8 h-8 rounded-full border-2 border-slate-800 bg-white p-1 object-contain" onerror="this.src='<?php echo get_template_directory_uri(); ?>/assets/images/logtipo_2.webp'">
+                            </div>
+                            <h3 class="font-bold text-white text-base truncate max-w-[150px]">${jogo.timeCasa} <span class="text-gray-500 font-normal mx-1">x</span> ${jogo.timeFora}</h3>
                         </div>
-                        <h3 class="font-bold text-white text-base truncate">${jogo.timeCasa} <span class="text-gray-500 font-normal mx-1">x</span> ${jogo.timeFora}</h3>
+
+                        ${(jogo.status === 'Ao Vivo' || jogo.status === 'Encerrado') ? `
+                            <div class="flex items-center gap-2 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-laranja/30 shadow-lg shadow-laranja/5">
+                                <span class="text-xl font-black text-white tabular-nums leading-none">${jogo.placarCasa || '0'}</span>
+                                <span class="text-laranja font-black leading-none">-</span>
+                                <span class="text-xl font-black text-white tabular-nums leading-none">${jogo.placarFora || '0'}</span>
+                            </div>
+                        ` : ''}
                     </div>
 
                     <!-- INFO EXTRA -->
