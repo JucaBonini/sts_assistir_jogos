@@ -51,6 +51,14 @@
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #0F172A; }
         ::-webkit-scrollbar-thumb { background: #E67E22; border-radius: 10px; }
+        
+        /* Custom scrollbar for dropdowns */
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #E67E22; border-radius: 10px; }
+
+        /* Animation for nested dropdown */
+        .group-hover\/sub\:visible { transition-delay: 0s; }
     </style>
 </head>
 <body <?php body_class('bg-bg-escuro text-gray-200 font-sans antialiased'); ?>>
@@ -79,10 +87,33 @@
                             <?php
                             $esportes = get_terms(array('taxonomy' => 'esporte', 'hide_empty' => true));
                             foreach ($esportes as $esporte) :
+                                $is_futebol = (trim(strtolower($esporte->name)) == 'futebol');
                             ?>
-                                <a href="<?php echo get_term_link($esporte); ?>" class="block px-4 py-2 hover:bg-laranja hover:text-white rounded-lg transition">
-                                    <?php echo esc_html($esporte->name); ?>
-                                </a>
+                                <div class="relative group/sub">
+                                    <a href="<?php echo get_term_link($esporte); ?>" class="flex items-center justify-between px-4 py-2 hover:bg-laranja hover:text-white rounded-lg transition">
+                                        <?php echo esc_html($esporte->name); ?>
+                                        <?php if ($is_futebol) : ?>
+                                            <i class="fas fa-chevron-right text-[10px] ml-2"></i>
+                                        <?php endif; ?>
+                                    </a>
+                                    
+                                    <?php if ($is_futebol) : ?>
+                                        <!-- Submenu de Campeonatos (Apenas para Futebol) -->
+                                        <div class="absolute left-full top-0 ml-1 w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl opacity-0 invisible group-hover/sub:opacity-100 group-hover/sub:visible transition-all duration-200 z-50">
+                                            <div class="p-2 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                                                <div class="text-[10px] text-gray-500 font-bold uppercase tracking-widest px-4 py-1 border-b border-white/5 mb-1">Campeonatos</div>
+                                                <?php
+                                                $campeonatos = get_terms(array('taxonomy' => 'campeonato', 'hide_empty' => true));
+                                                foreach ($campeonatos as $camp) :
+                                                ?>
+                                                    <a href="<?php echo get_term_link($camp); ?>" class="block px-4 py-2 hover:bg-laranja hover:text-white rounded-lg transition text-xs">
+                                                        <?php echo esc_html($camp->name); ?>
+                                                    </a>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
                             <?php endforeach; ?>
                         </div>
                     </div>
@@ -135,10 +166,29 @@
             <div class="text-gray-500 font-bold text-[10px] uppercase tracking-widest pt-2">Esportes</div>
             <?php
             foreach ($esportes as $esporte) :
+                $is_futebol = (trim(strtolower($esporte->name)) == 'futebol');
             ?>
-                <a href="<?php echo get_term_link($esporte); ?>" class="hover:text-laranja pl-2 border-l border-slate-600">
-                    <?php echo esc_html($esporte->name); ?>
-                </a>
+                <div class="flex flex-col">
+                    <a href="<?php echo get_term_link($esporte); ?>" class="hover:text-laranja pl-2 border-l border-slate-600 flex justify-between items-center group">
+                        <?php echo esc_html($esporte->name); ?>
+                        <?php if ($is_futebol) : ?>
+                            <i class="fas fa-chevron-down text-[10px] text-gray-500 mr-2"></i>
+                        <?php endif; ?>
+                    </a>
+                    
+                    <?php if ($is_futebol) : ?>
+                        <!-- Lista de Campeonatos no Mobile -->
+                        <div class="grid grid-cols-1 gap-1 pl-6 mt-1 mb-2 border-l border-slate-700/50">
+                            <?php
+                            foreach ($campeonatos as $camp) :
+                            ?>
+                                <a href="<?php echo get_term_link($camp); ?>" class="text-xs text-gray-400 hover:text-laranja py-1">
+                                    • <?php echo esc_html($camp->name); ?>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
             <?php endforeach; ?>
             <div class="text-gray-500 font-bold text-[10px] uppercase tracking-widest pt-2">Canais</div>
             <?php

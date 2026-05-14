@@ -47,9 +47,14 @@
                     $escudo_casa = get_post_meta(get_the_ID(), 'escudo_casa', true);
                     $escudo_fora = get_post_meta(get_the_ID(), 'escudo_fora', true);
                     $horario = get_post_meta(get_the_ID(), 'horario', true);
-                    $onde = get_post_meta(get_the_ID(), 'onde_assistir', true);
-                    $tipo = wp_get_post_terms(get_the_ID(), 'esporte', array('fields' => 'slugs'))[0] ?? 'esporte';
+                    
+                    // BUSCAR NOMES DOS CANAIS (Corrigindo o problema do ID)
+                    $canais_nomes = wp_get_post_terms(get_the_ID(), 'canal', array('fields' => 'names'));
+                    $onde = !empty($canais_nomes) ? implode(', ', $canais_nomes) : 'A definir';
+                    
+                    $tipo = wp_get_post_terms(get_the_ID(), 'esporte', array('fields' => 'slugs'))[0] ?? 'futebol';
                     $campeonato = wp_get_post_terms(get_the_ID(), 'campeonato', array('fields' => 'names'))[0] ?? '';
+                    $data_jogo = get_post_meta(get_the_ID(), 'data_jogo', true) ?: get_the_date('Y-m-d');
                     
                     $jogos_data[] = array(
                         'timeCasa' => $time_casa,
@@ -57,10 +62,15 @@
                         'escudoCasa' => $escudo_casa,
                         'escudoFora' => $escudo_fora,
                         'horario' => $horario,
+                        'data' => $data_jogo,
                         'onde' => $onde,
                         'tipo' => $tipo,
                         'campeonato' => $campeonato,
-                        'link' => get_the_permalink()
+                        'link' => get_the_permalink(),
+                        'oddCasa' => get_post_meta(get_the_ID(), 'oddCasa', true) ?: '-',
+                        'oddEmpate' => get_post_meta(get_the_ID(), 'oddEmpate', true) ?: '-',
+                        'oddFora' => get_post_meta(get_the_ID(), 'oddFora', true) ?: '-',
+                        'selo' => get_post_meta(get_the_ID(), 'selo_transmissao', true) ?: 'PAGO'
                     );
                 endwhile; ?>
                 
