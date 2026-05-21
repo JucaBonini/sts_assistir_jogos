@@ -245,6 +245,24 @@ function api_football_sincronizar_jogos( $data_sincronizacao = null, $leagues_to
                 wp_set_object_terms( $post_id, $term_id, 'campeonato' );
             }
 
+            // Associar à taxonomia de Esporte (futebol)
+            $esporte_name = 'Futebol';
+            $term_esporte = term_exists( $esporte_name, 'esporte' );
+            if ( ! $term_esporte ) {
+                $term_esporte = wp_insert_term( $esporte_name, 'esporte', array( 'slug' => 'futebol' ) );
+            }
+            
+            $esporte_term_id = 0;
+            if ( ! is_wp_error( $term_esporte ) && isset( $term_esporte['term_id'] ) ) {
+                $esporte_term_id = intval( $term_esporte['term_id'] );
+            } elseif ( isset( $term_esporte->term_id ) ) {
+                $esporte_term_id = intval( $term_esporte->term_id );
+            }
+
+            if ( $esporte_term_id > 0 ) {
+                wp_set_object_terms( $post_id, $esporte_term_id, 'esporte' );
+            }
+
             if ( $is_new ) {
                 $imported_count++;
                 $logs[] = "➕ Importado: <strong>{$post_title}</strong> às {$game_time} ({$league_name})";
