@@ -73,11 +73,28 @@ function api_football_sincronizar_jogos( $data_sincronizacao = null, $leagues_to
     $errors = array();
     $logs = array();
 
+    // Para resolver fusos horários e garantir a importação de todos os jogos da data local em São Paulo,
+    // buscamos uma janela de 3 dias na API (ontem, hoje e amanhã no fuso UTC) e filtramos localmente.
+    try {
+        $date_obj = new DateTime( $data_sincronizacao );
+        
+        $date_from_obj = clone $date_obj;
+        $date_from_obj->modify( '-1 day' );
+        $date_from = $date_from_obj->format( 'Y-m-d' );
+
+        $date_to_obj = clone $date_obj;
+        $date_to_obj->modify( '+1 day' );
+        $date_to = $date_to_obj->format( 'Y-m-d' );
+    } catch ( Exception $e ) {
+        $date_from = $data_sincronizacao;
+        $date_to = $data_sincronizacao;
+    }
+
     // endpoint único de partidas (/v4/matches) com filtro de data e ligas
     $leagues_string = implode( ',', $leagues_to_sync );
     $url = add_query_arg( array(
-        'dateFrom'     => $data_sincronizacao,
-        'dateTo'       => $data_sincronizacao,
+        'dateFrom'     => $date_from,
+        'dateTo'       => $date_to,
         'competitions' => $leagues_string
     ), 'https://api.football-data.org/v4/matches' );
 
@@ -132,6 +149,12 @@ function api_football_sincronizar_jogos( $data_sincronizacao = null, $leagues_to
         } catch ( Exception $e ) {
             $game_date = $data_sincronizacao;
             $game_time = '00h00';
+        }
+
+        // Como buscamos uma janela de 3 dias para cobrir diferenças de fuso horário,
+        // filtramos aqui apenas os jogos cuja data local (São Paulo) seja a data solicitada.
+        if ( $game_date !== $data_sincronizacao ) {
+            continue;
         }
 
         // Mapear Status do Jogo
@@ -299,6 +322,17 @@ function api_football_renderizar_pagina() {
         $sync_result = api_football_atualizar_placares_ativos();
     }
 
+    if ( isset( $_POST['api_football_sync_data_custom'] ) ) {
+        check_admin_referer( 'api_football_action_sync' );
+        $action_type = 'sincronizar';
+        $custom_date = isset( $_POST['sync_date'] ) ? sanitize_text_field( $_POST['sync_date'] ) : '';
+        if ( ! empty( $custom_date ) ) {
+            $sync_result = api_football_sincronizar_jogos( $custom_date );
+        } else {
+            $sync_result = array( 'success' => false, 'message' => 'Por favor, selecione uma data válida.' );
+        }
+    }
+
     // Obter valores atuais
     $api_key = get_option( 'api_football_key' );
     $configured_leagues = get_option( 'api_football_leagues', array_keys( FOOTBALL_DATA_DEFAULT_LEAGUES ) );
@@ -349,14 +383,25 @@ function api_football_renderizar_pagina() {
                     </div>
                 <?php endif; ?>
 
-                <form method="post" action="" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                <form method="post" action="" style="display: flex; flex-direction: column; gap: 15px;">
                     <?php wp_nonce_field( 'api_football_action_sync' ); ?>
                     
-                    <input type="submit" name="api_football_sync_hoje" class="button button-large" style="background: #10b981; border-color: #059669; color: #fff; font-weight: bold; text-shadow: none;" value="Sincronizar Jogos de Hoje" <?php disabled( empty( $api_key ) ); ?>>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        <input type="submit" name="api_football_sync_hoje" class="button button-large" style="background: #10b981; border-color: #059669; color: #fff; font-weight: bold; text-shadow: none;" value="Sincronizar Jogos de Hoje" <?php disabled( empty( $api_key ) ); ?>>
+                        
+                        <input type="submit" name="api_football_sync_amanha" class="button button-large" style="background: #3b82f6; border-color: #2563eb; color: #fff; font-weight: bold; text-shadow: none;" value="Sincronizar Jogos de Amanhã" <?php disabled( empty( $api_key ) ); ?>>
+                        
+                        <input type="submit" name="api_football_update_placares" class="button button-large" style="background: #8b5cf6; border-color: #7c3aed; color: #fff; font-weight: bold; text-shadow: none;" value="Atualizar Placares de Hoje" <?php disabled( empty( $api_key ) ); ?>>
+                    </div>
                     
-                    <input type="submit" name="api_football_sync_amanha" class="button button-large" style="background: #3b82f6; border-color: #2563eb; color: #fff; font-weight: bold; text-shadow: none;" value="Sincronizar Jogos de Amanhã" <?php disabled( empty( $api_key ) ); ?>>
-                    
-                    <input type="submit" name="api_football_update_placares" class="button button-large" style="background: #8b5cf6; border-color: #7c3aed; color: #fff; font-weight: bold; text-shadow: none;" value="Atualizar Placares de Hoje" <?php disabled( empty( $api_key ) ); ?>>
+                    <div style="border-top: 1px solid #f1f5f9; padding-top: 15px; margin-top: 5px;">
+                        <label for="sync_date" style="display: block; font-weight: bold; margin-bottom: 8px; color: #475569;">Sincronizar por Data Específica:</label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+                            <input type="date" id="sync_date" name="sync_date" value="<?php echo date('Y-m-d'); ?>" style="padding: 6px 12px; border-radius: 4px; border: 1px solid #cbd5e1; height: 32px; min-width: 180px;" <?php disabled( empty( $api_key ) ); ?>>
+                            <input type="submit" name="api_football_sync_data_custom" class="button button-large" style="background: #e67e22; border-color: #d35400; color: #fff; font-weight: bold; text-shadow: none;" value="Sincronizar Data Selecionada" <?php disabled( empty( $api_key ) ); ?>>
+                        </div>
+                        <p class="description" style="margin-top: 5px; color: #64748b;">Escolha qualquer data (passada ou futura) para importar ou atualizar os jogos correspondentes àquela data local.</p>
+                    </div>
                 </form>
 
                 <div style="margin-top: 15px; font-size: 12px; color: #64748b; background: #f8fafc; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0;">
