@@ -1,24 +1,25 @@
 <?php
 /**
- * Integração da API-Football no tema Assistir Jogos
+ * Integração da API Football-Data.org no tema Assistir Jogos
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly.
 }
 
-// Configurações padrão de Ligas
-define( 'API_FOOTBALL_DEFAULT_LEAGUES', array(
-    71  => 'Brasileirão Série A',
-    2   => 'UEFA Champions League',
-    13  => 'Copa Libertadores'
+// Configurações padrão de Ligas (football-data.org)
+define( 'FOOTBALL_DATA_DEFAULT_LEAGUES', array(
+    'BSA' => 'Brasileirão Série A',
+    'CL'  => 'Champions League',
+    'PL'  => 'Premier League',
+    'PD'  => 'La Liga'
 ));
 
 // Registrar página de menu no WordPress Admin
 function api_football_adicionar_menu() {
     add_submenu_page(
         'edit.php?post_type=jogo',
-        'Importador API-Football',
+        'Importador Football-Data',
         'Importador API',
         'manage_options',
         'api-football-import',
@@ -44,12 +45,12 @@ add_action( 'wp', 'api_football_agendar_cron' );
 add_action( 'api_football_daily_sync_event', 'api_football_sincronizar_jogos' );
 
 /**
- * Função principal para buscar e salvar os jogos por data e liga
+ * Função principal para buscar e salvar os jogos usando a API football-data.org
  */
 function api_football_sincronizar_jogos( $data_sincronizacao = null, $leagues_to_sync = null ) {
     $api_key = get_option( 'api_football_key' );
     if ( empty( $api_key ) ) {
-        return array( 'success' => false, 'message' => 'Chave de API não configurada.' );
+        return array( 'success' => false, 'message' => 'Token da API não configurado.' );
     }
 
     if ( ! $data_sincronizacao ) {
@@ -60,7 +61,7 @@ function api_football_sincronizar_jogos( $data_sincronizacao = null, $leagues_to
     }
 
     if ( ! $leagues_to_sync ) {
-        $leagues_to_sync = get_option( 'api_football_leagues', array_keys( API_FOOTBALL_DEFAULT_LEAGUES ) );
+        $leagues_to_sync = get_option( 'api_football_leagues', array_keys( FOOTBALL_DATA_DEFAULT_LEAGUES ) );
     }
 
     if ( empty( $leagues_to_sync ) ) {
@@ -72,150 +73,161 @@ function api_football_sincronizar_jogos( $data_sincronizacao = null, $leagues_to
     $errors = array();
     $logs = array();
 
-    // Loop por cada liga selecionada (consome 1 requisição por liga)
-    foreach ( $leagues_to_sync as $league_id ) {
-        $league_id = intval( $league_id );
-        
-        $url = add_query_arg( array(
-            'date'   => $data_sincronizacao,
-            'league' => $league_id,
-            'season' => date( 'Y' ) // Season atual baseada no ano
-        ), 'https://v3.football.api-sports.io/fixtures' );
+    // endpoint único de partidas (/v4/matches) com filtro de data e ligas
+    $leagues_string = implode( ',', $leagues_to_sync );
+    $url = add_query_arg( array(
+        'dateFrom'     => $data_sincronizacao,
+        'dateTo'       => $data_sincronizacao,
+        'competitions' => $leagues_string
+    ), 'https://api.football-data.org/v4/matches' );
 
-        $response = wp_remote_get( $url, array(
-            'timeout' => 30,
-            'headers' => array(
-                'x-apisports-key' => $api_key
-            )
+    $response = wp_remote_get( $url, array(
+        'timeout' => 30,
+        'headers' => array(
+            'X-Auth-Token' => $api_key
+        )
+    ));
+
+    if ( is_wp_error( $response ) ) {
+        return array( 'success' => false, 'message' => 'Erro na requisição: ' . $response->get_error_message() );
+    }
+
+    $body = wp_remote_retrieve_body( $response );
+    $data = json_decode( $body, true );
+
+    // Tratar erros da API
+    if ( isset( $data['errorCode'] ) || ( isset( $data['message'] ) && !isset( $data['matches'] ) ) ) {
+        $api_err = isset( $data['message'] ) ? $data['message'] : 'Erro desconhecido da API.';
+        return array( 'success' => false, 'message' => 'Erro retornado pela API: ' . $api_err );
+    }
+
+    if ( ! isset( $data['matches'] ) || ! is_array( $data['matches'] ) ) {
+        return array( 'success' => false, 'message' => 'A resposta da API não contém nenhuma partida.' );
+    }
+
+    $matches = $data['matches'];
+
+    foreach ( $matches as $item ) {
+        $match_id   = $item['id'];
+        $home_name  = ! empty( $item['homeTeam']['shortName'] ) ? $item['homeTeam']['shortName'] : $item['homeTeam']['name'];
+        $away_name  = ! empty( $item['awayTeam']['shortName'] ) ? $item['awayTeam']['shortName'] : $item['awayTeam']['name'];
+        $home_logo  = $item['homeTeam']['crest'];
+        $away_logo  = $item['awayTeam']['crest'];
+        
+        $goals_home = isset( $item['score']['fullTime']['home'] ) ? $item['score']['fullTime']['home'] : '';
+        $goals_away = isset( $item['score']['fullTime']['away'] ) ? $item['score']['fullTime']['away'] : '';
+        
+        $status_api = $item['status'];
+        $venue      = isset( $item['venue'] ) ? $item['venue'] : '';
+        $matchday   = isset( $item['matchday'] ) ? $item['matchday'] : '';
+        $stage_api  = isset( $item['stage'] ) ? $item['stage'] : '';
+
+        // Converter Horário UTC para America/Sao_Paulo
+        $fixture_date_raw = $item['utcDate']; // Ex: 2026-05-21T18:00:00Z
+        try {
+            $utc_date = new DateTime( $fixture_date_raw, new DateTimeZone( 'UTC' ) );
+            $utc_date->setTimezone( new DateTimeZone( 'America/Sao_Paulo' ) );
+            $game_date = $utc_date->format( 'Y-m-d' );
+            $game_time = $utc_date->format( 'H\hi' ); // Ex: 19h30
+        } catch ( Exception $e ) {
+            $game_date = $data_sincronizacao;
+            $game_time = '00h00';
+        }
+
+        // Mapear Status do Jogo
+        $status_jogo = 'Agendado';
+        if ( in_array( $status_api, array( 'IN_PLAY', 'PAUSED' ) ) ) {
+            $status_jogo = 'Ao Vivo';
+        } elseif ( in_array( $status_api, array( 'FINISHED', 'POSTPONED', 'CANCELLED', 'SUSPENDED' ) ) ) {
+            $status_jogo = 'Encerrado';
+        }
+
+        // Verificar se o post do jogo já existe pelo football_data_match_id
+        $existing_posts = get_posts( array(
+            'post_type'      => 'jogo',
+            'meta_key'       => 'football_data_match_id',
+            'meta_value'     => $match_id,
+            'posts_per_page' => 1,
+            'post_status'    => 'any'
         ));
 
-        if ( is_wp_error( $response ) ) {
-            $errors[] = "Erro na liga {$league_id}: " . $response->get_error_message();
-            continue;
-        }
+        $post_title = "{$home_name} x {$away_name}";
+        $is_new = true;
 
-        $body = wp_remote_retrieve_body( $response );
-        $data = json_decode( $body, true );
-
-        if ( isset( $data['errors'] ) && ! empty( $data['errors'] ) ) {
-            $api_err = is_array( $data['errors'] ) ? implode( ', ', $data['errors'] ) : $data['errors'];
-            $errors[] = "Erro retornado pela API para liga {$league_id}: " . $api_err;
-            continue;
-        }
-
-        if ( ! isset( $data['response'] ) || ! is_array( $data['response'] ) ) {
-            continue;
-        }
-
-        $fixtures = $data['response'];
-
-        foreach ( $fixtures as $item ) {
-            $fixture_id = $item['fixture']['id'];
-            $home_name  = $item['teams']['home']['name'];
-            $away_name  = $item['teams']['away']['name'];
-            $home_logo  = $item['teams']['home']['logo'];
-            $away_logo  = $item['teams']['away']['logo'];
+        if ( ! empty( $existing_posts ) ) {
+            $post_id = $existing_posts[0]->ID;
+            $is_new = false;
             
-            $goals_home = isset( $item['goals']['home'] ) ? $item['goals']['home'] : '';
-            $goals_away = isset( $item['goals']['away'] ) ? $item['goals']['away'] : '';
-            
-            $status_api = $item['fixture']['status']['short'];
-            $venue      = isset( $item['fixture']['venue']['name'] ) ? $item['fixture']['venue']['name'] : '';
-            $round_api  = isset( $item['league']['round'] ) ? $item['league']['round'] : '';
-
-            // Converter Horário UTC para America/Sao_Paulo
-            $fixture_date_raw = $item['fixture']['date']; // ISO 8601 (ex: 2026-05-21T23:00:00+00:00)
-            try {
-                $utc_date = new DateTime( $fixture_date_raw, new DateTimeZone( 'UTC' ) );
-                $utc_date->setTimezone( new DateTimeZone( 'America/Sao_Paulo' ) );
-                $game_date = $utc_date->format( 'Y-m-d' );
-                $game_time = $utc_date->format( 'H\hi' ); // Formato compatível com o tema (ex: 19h00)
-            } catch ( Exception $e ) {
-                $game_date = $data_sincronizacao;
-                $game_time = '00h00';
-            }
-
-            // Mapear Status do Jogo
-            $status_jogo = 'Agendado';
-            if ( in_array( $status_api, array( '1H', '2H', 'HT', 'ET', 'BT', 'P', 'INT' ) ) ) {
-                $status_jogo = 'Ao Vivo';
-            } elseif ( in_array( $status_api, array( 'FT', 'AET', 'PEN', 'CANC', 'ABD', 'AWD', 'WO' ) ) ) {
-                $status_jogo = 'Encerrado';
-            }
-
-            // Verificar se o post do jogo já existe pelo api_football_fixture_id
-            $existing_posts = get_posts( array(
-                'post_type'      => 'jogo',
-                'meta_key'       => 'api_football_fixture_id',
-                'meta_value'     => $fixture_id,
-                'posts_per_page' => 1,
-                'post_status'    => 'any'
+            wp_update_post( array(
+                'ID'         => $post_id,
+                'post_title' => $post_title
             ));
+        } else {
+            // Inserir novo jogo
+            $post_id = wp_insert_post( array(
+                'post_title'  => $post_title,
+                'post_status' => 'publish',
+                'post_type'   => 'jogo'
+            ));
+        }
 
-            $post_title = "{$home_name} x {$away_name}";
-            $is_new = true;
-
-            if ( ! empty( $existing_posts ) ) {
-                $post_id = $existing_posts[0]->ID;
-                $is_new = false;
-                
-                // Opcional: Atualizar o título do post se mudou
-                wp_update_post( array(
-                    'ID'         => $post_id,
-                    'post_title' => $post_title
-                ));
+        if ( ! is_wp_error( $post_id ) ) {
+            // Atualizar Metadados
+            update_post_meta( $post_id, 'football_data_match_id', $match_id );
+            update_post_meta( $post_id, 'time_casa', $home_name );
+            update_post_meta( $post_id, 'time_fora', $away_name );
+            update_post_meta( $post_id, 'escudo_casa', $home_logo );
+            update_post_meta( $post_id, 'escudo_fora', $away_logo );
+            update_post_meta( $post_id, 'placar_casa', $goals_home );
+            update_post_meta( $post_id, 'placar_fora', $goals_away );
+            update_post_meta( $post_id, 'status_jogo', $status_jogo );
+            update_post_meta( $post_id, 'data_jogo', $game_date );
+            update_post_meta( $post_id, 'horario', $game_time );
+            update_post_meta( $post_id, 'estadio', $venue );
+            
+            // Mapear rodada ou fase do campeonato
+            $rodada_exibida = '';
+            if ( $stage_api === 'REGULAR_SEASON' && ! empty( $matchday ) ) {
+                $rodada_exibida = "{$matchday}ª Rodada";
             } else {
-                // Inserir novo jogo
-                $post_id = wp_insert_post( array(
-                    'post_title'  => $post_title,
-                    'post_status' => 'publish',
-                    'post_type'   => 'jogo'
-                ));
+                // Traduzir fases eliminatórias/copa
+                $fases = array(
+                    'GROUP_STAGE'     => 'Fase de Grupos',
+                    'ROUND_OF_16'     => 'Oitavas de Final',
+                    'QUARTER_FINALS'  => 'Quartas de Final',
+                    'SEMI_FINALS'     => 'Semifinal',
+                    'FINAL'           => 'Final'
+                );
+                $rodada_exibida = isset( $fases[$stage_api] ) ? $fases[$stage_api] : $stage_api;
+            }
+            update_post_meta( $post_id, 'rodada', $rodada_exibida );
+
+            // Associar à taxonomia de Campeonatos
+            $comp_code = $item['competition']['code'];
+            $league_name = isset( FOOTBALL_DATA_DEFAULT_LEAGUES[$comp_code] ) ? FOOTBALL_DATA_DEFAULT_LEAGUES[$comp_code] : $item['competition']['name'];
+            
+            $term = term_exists( $league_name, 'campeonato' );
+            if ( ! $term ) {
+                $term = wp_insert_term( $league_name, 'campeonato' );
+            }
+            
+            $term_id = 0;
+            if ( ! is_wp_error( $term ) && isset( $term['term_id'] ) ) {
+                $term_id = intval( $term['term_id'] );
+            } elseif ( isset( $term->term_id ) ) {
+                $term_id = intval( $term->term_id );
             }
 
-            if ( ! is_wp_error( $post_id ) ) {
-                // Atualizar Metadados
-                update_post_meta( $post_id, 'api_football_fixture_id', $fixture_id );
-                update_post_meta( $post_id, 'time_casa', $home_name );
-                update_post_meta( $post_id, 'time_fora', $away_name );
-                update_post_meta( $post_id, 'escudo_casa', $home_logo );
-                update_post_meta( $post_id, 'escudo_fora', $away_logo );
-                update_post_meta( $post_id, 'placar_casa', $goals_home );
-                update_post_meta( $post_id, 'placar_fora', $goals_away );
-                update_post_meta( $post_id, 'status_jogo', $status_jogo );
-                update_post_meta( $post_id, 'data_jogo', $game_date );
-                update_post_meta( $post_id, 'horario', $game_time );
-                update_post_meta( $post_id, 'estadio', $venue );
-                
-                // Traduzir rodada se possível
-                $rodada_traduzida = preg_replace( '/Regular Season - (\d+)/i', '$1ª Rodada', $round_api );
-                update_post_meta( $post_id, 'rodada', $rodada_traduzida );
+            if ( $term_id > 0 ) {
+                wp_set_object_terms( $post_id, $term_id, 'campeonato' );
+            }
 
-                // Associar à taxonomia de Campeonatos
-                $league_name = isset( API_FOOTBALL_DEFAULT_LEAGUES[$league_id] ) ? API_FOOTBALL_DEFAULT_LEAGUES[$league_id] : $item['league']['name'];
-                $term = term_exists( $league_name, 'campeonato' );
-                if ( ! $term ) {
-                    $term = wp_insert_term( $league_name, 'campeonato' );
-                }
-                
-                $term_id = 0;
-                if ( ! is_wp_error( $term ) && isset( $term['term_id'] ) ) {
-                    $term_id = intval( $term['term_id'] );
-                } elseif ( isset( $term->term_id ) ) {
-                    $term_id = intval( $term->term_id );
-                }
-
-                if ( $term_id > 0 ) {
-                    wp_set_object_terms( $post_id, $term_id, 'campeonato' );
-                }
-
-                if ( $is_new ) {
-                    $imported_count++;
-                    $logs[] = "➕ Importado: <strong>{$post_title}</strong> às {$game_time} ({$league_name})";
-                } else {
-                    $updated_count++;
-                    $logs[] = "🔄 Atualizado: <strong>{$post_title}</strong> (Placar: {$goals_home}x{$goals_away} | Status: {$status_jogo})";
-                }
+            if ( $is_new ) {
+                $imported_count++;
+                $logs[] = "➕ Importado: <strong>{$post_title}</strong> às {$game_time} ({$league_name})";
+            } else {
+                $updated_count++;
+                $logs[] = "🔄 Atualizado: <strong>{$post_title}</strong> (Placar: {$goals_home}x{$goals_away} | Status: {$status_jogo})";
             }
         }
     }
@@ -230,124 +242,21 @@ function api_football_sincronizar_jogos( $data_sincronizacao = null, $leagues_to
 }
 
 /**
- * Função otimizada para atualizar os placares dos jogos ativos em andamento de hoje
- * Consome apenas 1 única requisição à API usando a rota /fixtures?ids=id1,id2...
+ * Função otimizada para atualizar placares em lote
+ * Simplesmente reutiliza a sincronização para a data de hoje, atualizando os posts existentes
  */
 function api_football_atualizar_placares_ativos() {
-    $api_key = get_option( 'api_football_key' );
-    if ( empty( $api_key ) ) {
-        return array( 'success' => false, 'message' => 'Chave de API não configurada.' );
+    // Para a API football-data.org, como a requisição nos dá todos os jogos em 1 chamada só por dia,
+    // a atualização de placares dos jogos ativos é idêntica a sincronizar os jogos de hoje.
+    $res = api_football_sincronizar_jogos();
+    if ( $res['success'] ) {
+        return array(
+            'success' => true,
+            'updated' => $res['updated'],
+            'logs'    => $res['logs']
+        );
     }
-
-    // Buscar posts de jogos de hoje que possuem ID da API e não estão "Encerrados"
-    $timezone = new DateTimeZone( 'America/Sao_Paulo' );
-    $now = new DateTime( 'now', $timezone );
-    $hoje = $now->format( 'Y-m-d' );
-
-    $jogos = get_posts( array(
-        'post_type'      => 'jogo',
-        'posts_per_page' => -1,
-        'post_status'    => 'publish',
-        'meta_query'     => array(
-            'relation' => 'AND',
-            array(
-                'key'     => 'data_jogo',
-                'value'   => $hoje,
-                'compare' => '='
-            ),
-            array(
-                'key'     => 'api_football_fixture_id',
-                'compare' => 'EXISTS'
-            ),
-            array(
-                'key'     => 'status_jogo',
-                'value'   => 'Encerrado',
-                'compare' => '!='
-            )
-        )
-    ));
-
-    if ( empty( $jogos ) ) {
-        return array( 'success' => true, 'message' => 'Nenhum jogo ativo hoje precisa de atualização de placar.', 'updated' => 0 );
-    }
-
-    $fixture_ids = array();
-    $post_mapping = array();
-
-    foreach ( $jogos as $jogo ) {
-        $fid = get_post_meta( $jogo->ID, 'api_football_fixture_id', true );
-        if ( $fid ) {
-            $fixture_ids[] = intval( $fid );
-            $post_mapping[intval( $fid )] = $jogo->ID;
-        }
-    }
-
-    if ( empty( $fixture_ids ) ) {
-        return array( 'success' => true, 'message' => 'Nenhum ID da API foi mapeado.', 'updated' => 0 );
-    }
-
-    // Limita a chamada a 20 fixtures se necessário por segurança, embora o endpoint suporte até 20
-    $ids_string = implode( '-', $fixture_ids ); // API-Football usa hífen ou vírgula
-    $url = "https://v3.football.api-sports.io/fixtures?ids={$ids_string}";
-
-    $response = wp_remote_get( $url, array(
-        'timeout' => 30,
-        'headers' => array(
-            'x-apisports-key' => $api_key
-        )
-    ));
-
-    if ( is_wp_error( $response ) ) {
-        return array( 'success' => false, 'message' => 'Erro na requisição: ' . $response->get_error_message() );
-    }
-
-    $body = wp_remote_retrieve_body( $response );
-    $data = json_decode( $body, true );
-
-    if ( isset( $data['errors'] ) && ! empty( $data['errors'] ) ) {
-        $api_err = is_array( $data['errors'] ) ? implode( ', ', $data['errors'] ) : $data['errors'];
-        return array( 'success' => false, 'message' => 'Erro da API: ' . $api_err );
-    }
-
-    if ( ! isset( $data['response'] ) || ! is_array( $data['response'] ) ) {
-        return array( 'success' => false, 'message' => 'Dados inválidos retornados pela API.' );
-    }
-
-    $fixtures = $data['response'];
-    $updated_count = 0;
-    $logs = array();
-
-    foreach ( $fixtures as $item ) {
-        $fixture_id = $item['fixture']['id'];
-        if ( isset( $post_mapping[$fixture_id] ) ) {
-            $post_id = $post_mapping[$fixture_id];
-            
-            $goals_home = isset( $item['goals']['home'] ) ? $item['goals']['home'] : '';
-            $goals_away = isset( $item['goals']['away'] ) ? $item['goals']['away'] : '';
-            $status_api = $item['fixture']['status']['short'];
-
-            // Mapear Status do Jogo
-            $status_jogo = 'Agendado';
-            if ( in_array( $status_api, array( '1H', '2H', 'HT', 'ET', 'BT', 'P', 'INT' ) ) ) {
-                $status_jogo = 'Ao Vivo';
-            } elseif ( in_array( $status_api, array( 'FT', 'AET', 'PEN', 'CANC', 'ABD', 'AWD', 'WO' ) ) ) {
-                $status_jogo = 'Encerrado';
-            }
-
-            update_post_meta( $post_id, 'placar_casa', $goals_home );
-            update_post_meta( $post_id, 'placar_fora', $goals_away );
-            update_post_meta( $post_id, 'status_jogo', $status_jogo );
-
-            $updated_count++;
-            $logs[] = "⚡ Placar Atualizado: <strong>" . get_the_title( $post_id ) . "</strong> ({$goals_home}x{$goals_away}) | Status: {$status_jogo}";
-        }
-    }
-
-    return array(
-        'success' => true,
-        'updated' => $updated_count,
-        'logs'    => $logs
-    );
+    return $res;
 }
 
 /**
@@ -362,7 +271,7 @@ function api_football_renderizar_pagina() {
         check_admin_referer( 'api_football_salvar_options' );
         update_option( 'api_football_key', sanitize_text_field( $_POST['api_football_key'] ) );
         
-        $selected_leagues = isset( $_POST['api_football_leagues'] ) ? array_map( 'intval', $_POST['api_football_leagues'] ) : array();
+        $selected_leagues = isset( $_POST['api_football_leagues'] ) ? array_map( 'sanitize_text_field', $_POST['api_football_leagues'] ) : array();
         update_option( 'api_football_leagues', $selected_leagues );
         
         echo '<div class="notice notice-success is-dismissible"><p>Configurações salvas com sucesso!</p></div>';
@@ -392,12 +301,12 @@ function api_football_renderizar_pagina() {
 
     // Obter valores atuais
     $api_key = get_option( 'api_football_key' );
-    $configured_leagues = get_option( 'api_football_leagues', array_keys( API_FOOTBALL_DEFAULT_LEAGUES ) );
+    $configured_leagues = get_option( 'api_football_leagues', array_keys( FOOTBALL_DATA_DEFAULT_LEAGUES ) );
     ?>
     <div class="wrap" style="max-width: 900px; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen-Sans,Ubuntu,Cantarell,'Helvetica Neue',sans-serif;">
         <h1 style="color: #e67e22; font-weight: 700; margin-bottom: 20px; display: flex; items-center: center; gap: 8px;">
             <span class="dashicons dashicons-update-alt" style="font-size: 32px; width: 32px; height: 32px; color: #e67e22;"></span> 
-            Sincronizador API-Football
+            Sincronizador Football-Data (Temporada 2026 Grátis)
         </h1>
 
         <div style="display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 20px;">
@@ -409,18 +318,18 @@ function api_football_renderizar_pagina() {
                     <?php wp_nonce_field( 'api_football_salvar_options' ); ?>
                     
                     <div style="margin-bottom: 20px;">
-                        <label for="api_football_key" style="display: block; font-weight: bold; margin-bottom: 8px; color: #475569;">Sua API Key (API-Sports):</label>
-                        <input type="password" id="api_football_key" name="api_football_key" value="<?php echo esc_attr( $api_key ); ?>" style="width: 100%; max-width: 400px; padding: 8px; border-radius: 4px; border: 1px solid #cbd5e1;" placeholder="Insira sua Chave da API">
-                        <p class="description" style="margin-top: 5px;">Disponível no seu painel em <a href="https://dashboard.api-football.com/" target="_blank">dashboard.api-football.com</a>.</p>
+                        <label for="api_football_key" style="display: block; font-weight: bold; margin-bottom: 8px; color: #475569;">Seu API Token (Football-Data.org):</label>
+                        <input type="password" id="api_football_key" name="api_football_key" value="<?php echo esc_attr( $api_key ); ?>" style="width: 100%; max-width: 400px; padding: 8px; border-radius: 4px; border: 1px solid #cbd5e1;" placeholder="Insira seu Token da API">
+                        <p class="description" style="margin-top: 5px;">Disponível após o registro gratuito em <a href="https://www.football-data.org/client/register" target="_blank">football-data.org/client/register</a>.</p>
                     </div>
 
                     <div style="margin-bottom: 20px;">
-                        <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #475569;">Campeonatos para Importar:</label>
+                        <label style="display: block; font-weight: bold; margin-bottom: 8px; color: #475569;">Campeonatos para Importar (Plano Grátis):</label>
                         <div style="display: flex; flex-direction: column; gap: 8px; background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                            <?php foreach ( API_FOOTBALL_DEFAULT_LEAGUES as $id => $name ) : ?>
+                            <?php foreach ( FOOTBALL_DATA_DEFAULT_LEAGUES as $code => $name ) : ?>
                                 <label style="font-weight: 500; display: inline-flex; align-items: center; gap: 8px;">
-                                    <input type="checkbox" name="api_football_leagues[]" value="<?php echo $id; ?>" <?php checked( in_array( $id, $configured_leagues ) ); ?>>
-                                    <?php echo esc_html( $name ); ?> <span style="font-size: 11px; color: #64748b; font-weight: 450;">(ID: <?php echo $id; ?>)</span>
+                                    <input type="checkbox" name="api_football_leagues[]" value="<?php echo $code; ?>" <?php checked( in_array( $code, $configured_leagues ) ); ?>>
+                                    <?php echo esc_html( $name ); ?> <span style="font-size: 11px; color: #64748b; font-weight: 450;">(Código: <?php echo $code; ?>)</span>
                                 </label>
                             <?php endforeach; ?>
                         </div>
@@ -436,7 +345,7 @@ function api_football_renderizar_pagina() {
                 
                 <?php if ( empty( $api_key ) ) : ?>
                     <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 12px; border-radius: 4px; margin-bottom: 15px;">
-                        <span style="color: #991b1b; font-weight: 600;">Atenção:</span> Configure sua API Key acima antes de tentar realizar a sincronização.
+                        <span style="color: #991b1b; font-weight: 600;">Atenção:</span> Configure seu Token da API acima antes de tentar realizar a sincronização.
                     </div>
                 <?php endif; ?>
 
@@ -451,7 +360,7 @@ function api_football_renderizar_pagina() {
                 </form>
 
                 <div style="margin-top: 15px; font-size: 12px; color: #64748b; background: #f8fafc; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0;">
-                    💡 <strong>Consumo de Limite:</strong> Cada sincronização consome <strong>1 requisição por liga selecionada</strong>. Atualizar placares ativos consome <strong>apenas 1 única requisição</strong> no total. Recomendamos sincronizar os jogos apenas no início do dia e atualizar os placares quando precisar.
+                    💡 <strong>Consumo de Limite:</strong> A API Gratuita permite até <strong>10 chamadas por minuto</strong>. Cada sincronização ou atualização de placares realizada aqui consome <strong>apenas 1 chamada no total</strong> para trazer todas as ligas selecionadas juntas!
                 </div>
             </div>
 
@@ -494,7 +403,7 @@ function api_football_renderizar_pagina() {
                         <div style="max-height: 250px; overflow-y: auto; background: #0f172a; color: #38bdf8; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 13px; line-height: 1.6;">
                             <span style="color: #94a3b8;">[<?php echo date( 'H:i:s' ); ?>] Iniciando logs do processo...</span><br>
                             <?php if ( empty( $sync_result['logs'] ) ) : ?>
-                                <span style="color: #e2e8f0;">Nenhum jogo novo ou atualização pendente processada para esta data.</span>
+                                <span style="color: #e2e8f0;">Nenhum jogo novo ou atualização de placar processada para esta data.</span>
                             <?php else : ?>
                                 <?php foreach ( $sync_result['logs'] as $log ) : ?>
                                     <span>[<?php echo date( 'H:i:s' ); ?>] <?php echo $log; ?></span><br>
