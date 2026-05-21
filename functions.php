@@ -1151,14 +1151,6 @@ function set_default_jogo_content($content, $post) {
 }
 add_filter('default_content', 'set_default_jogo_content', 10, 2);
 
-
-
-
-
-
-
-
-
-
-
+// Incluir integrador da API-Football
+require_once get_template_directory() . '/inc/api-football.php';
 
