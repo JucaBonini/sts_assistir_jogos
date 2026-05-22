@@ -205,6 +205,10 @@ function api_football_sincronizar_jogos( $data_sincronizacao = null, $leagues_to
         $matchday   = isset( $item['matchday'] ) ? $item['matchday'] : '';
         $stage_api  = isset( $item['stage'] ) ? $item['stage'] : '';
 
+        $odd_casa   = isset( $item['odds']['homeWin'] ) ? $item['odds']['homeWin'] : '';
+        $odd_empate = isset( $item['odds']['draw'] ) ? $item['odds']['draw'] : '';
+        $odd_fora   = isset( $item['odds']['awayWin'] ) ? $item['odds']['awayWin'] : '';
+
         // Converter Horário UTC para America/Sao_Paulo
         $fixture_date_raw = $item['utcDate']; // Ex: 2026-05-21T18:00:00Z
         try {
@@ -321,6 +325,9 @@ function api_football_sincronizar_jogos( $data_sincronizacao = null, $leagues_to
             update_post_meta( $post_id, 'horario', $game_time );
             update_post_meta( $post_id, 'estadio', $venue );
             update_post_meta( $post_id, 'rodada', $rodada_exibida );
+            update_post_meta( $post_id, 'oddCasa', $odd_casa );
+            update_post_meta( $post_id, 'oddEmpate', $odd_empate );
+            update_post_meta( $post_id, 'oddFora', $odd_fora );
 
             // Se for jogo da Copa, buscar e associar os IDs das seleções e outros metadados da Copa
             if ( $comp_code === 'WC' ) {
