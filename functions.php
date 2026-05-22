@@ -1187,3 +1187,17 @@ add_filter('default_content', 'set_default_jogo_content', 10, 2);
 // Incluir integrador da API-Football
 require_once get_template_directory() . '/inc/api-football.php';
 
+/**
+ * Forçar uso do template single-jogo.php para o CPT jogo_copa
+ */
+function use_single_jogo_template_for_copa( $template ) {
+    if ( is_singular( 'jogo_copa' ) ) {
+        $new_template = locate_template( array( 'single-jogo.php' ) );
+        if ( ! empty( $new_template ) ) {
+            return $new_template;
+        }
+    }
+    return $template;
+}
+add_filter( 'single_template', 'use_single_jogo_template_for_copa' );
+
