@@ -13,12 +13,17 @@ $bandeira = get_the_post_thumbnail_url($selecao_id, 'full');
 // Buscar Jogadores desta Seleção
 $jogadores = get_posts(array(
     'post_type' => 'jogador',
-    'meta_key' => 'selecao_vinculada',
-    'meta_value' => $selecao_id,
     'posts_per_page' => -1,
-    'orderby' => 'meta_value_num',
     'meta_key' => 'numero_camisa',
-    'order' => 'ASC'
+    'orderby' => 'meta_value_num',
+    'order' => 'ASC',
+    'meta_query' => array(
+        array(
+            'key' => 'selecao_vinculada',
+            'value' => $selecao_id,
+            'compare' => '='
+        )
+    )
 ));
 ?>
 
@@ -73,26 +78,77 @@ $jogadores = get_posts(array(
                 <?php if (empty($jogadores)) : ?>
                     <p class="text-gray-500 italic bg-slate-900/50 p-8 rounded-2xl border border-white/5">Nenhum jogador cadastrado para esta seleção ainda.</p>
                 <?php else : ?>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <?php foreach ($jogadores as $j) : 
-                            $posicao = get_post_meta($j->ID, 'posicao', true);
-                            $numero = get_post_meta($j->ID, 'numero_camisa', true);
-                            $clube = get_post_meta($j->ID, 'clube_atual', true);
-                            $foto = get_the_post_thumbnail_url($j->ID, 'thumbnail') ?: get_template_directory_uri().'/assets/images/imagens-post.webp';
+                    <div class="space-y-8">
+                        <?php 
+                        // Agrupar e categorizar jogadores
+                        $grouped = array(
+                            'Goleiros' => array(),
+                            'Defensores' => array(),
+                            'Meio-campistas' => array(),
+                            'Atacantes' => array()
+                        );
+                        
+                        foreach ($jogadores as $j) {
+                            $posicao = get_post_meta($j->ID, 'posicao', true) ?: 'Jogador';
+                            $posicao_clean = mb_strtolower($posicao);
+                            
+                            if (strpos($posicao_clean, 'goleir') !== false || strpos($posicao_clean, 'gk') !== false || strpos($posicao_clean, 'arquero') !== false) {
+                                $category = 'Goleiros';
+                            } elseif (strpos($posicao_clean, 'defes') !== false || strpos($posicao_clean, 'zagueir') !== false || strpos($posicao_clean, 'lateral') !== false || strpos($posicao_clean, 'zaga') !== false || strpos($posicao_clean, 'backer') !== false || strpos($posicao_clean, 'back') !== false) {
+                                $category = 'Defensore' . 's'; // Evitando que a concatenação ou qualquer typo quebre
+                            } elseif (strpos($posicao_clean, 'meia') !== false || strpos($posicao_clean, 'volante') !== false || strpos($posicao_clean, 'medio') !== false || strpos($posicao_clean, 'campista') !== false || strpos($posicao_clean, 'midfield') !== false) {
+                                $category = 'Meio-campistas';
+                            } else {
+                                $category = 'Atacantes';
+                            }
+                            
+                            $numero = get_post_meta($j->ID, 'numero_camisa', true) ?: '0';
+                            $clube = get_post_meta($j->ID, 'clube_atual', true) ?: 'Sem clube';
+                            $foto = get_the_post_thumbnail_url($j->ID, 'thumbnail') ?: '';
+                            
+                            $grouped[$category][] = array(
+                                'id' => $j->ID,
+                                'nome' => $j->post_title,
+                                'posicao' => $posicao,
+                                'numero' => $numero,
+                                'clube' => $clube,
+                                'foto' => $foto,
+                                'link' => get_permalink($j->ID)
+                            );
+                        }
+                        
+                        foreach ($grouped as $position_name => $players_list) : 
+                            if (empty($players_list)) continue;
                         ?>
-                            <div class="glass-card p-4 rounded-2xl flex items-center gap-4 hover:border-laranja/30 transition-all group">
-                                <div class="relative">
-                                    <img src="<?php echo $foto; ?>" class="w-16 h-16 object-cover rounded-xl bg-slate-800">
-                                    <span class="absolute -top-2 -left-2 bg-laranja text-white text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-lg shadow-lg"><?php echo $numero; ?></span>
+                            <div>
+                                <h3 class="text-xs font-black uppercase text-laranja tracking-wider mb-4 flex items-center gap-2">
+                                    <span class="w-1.5 h-1.5 bg-laranja rounded-full"></span>
+                                    <?php echo esc_html($position_name); ?>
+                                </h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <?php foreach ($players_list as $player) : ?>
+                                        <a href="<?php echo esc_url($player['link']); ?>" class="glass-card p-4 rounded-2xl flex items-center gap-4 hover:border-laranja/30 transition-all group">
+                                            <div class="relative flex-shrink-0">
+                                                <?php if ($player['foto']) : ?>
+                                                    <img src="<?php echo esc_url($player['foto']); ?>" class="w-16 h-16 object-cover rounded-xl bg-slate-800 border border-slate-700">
+                                                <?php else : ?>
+                                                    <div class="w-16 h-16 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-center text-gray-600">
+                                                        <i class="fas fa-tshirt text-xl"></i>
+                                                    </div>
+                                                <?php endif; ?>
+                                                <span class="absolute -top-2 -left-2 bg-laranja text-white text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-lg shadow-lg"><?php echo esc_html($player['numero']); ?></span>
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <h4 class="font-black uppercase italic text-sm group-hover:text-laranja transition truncate"><?php echo esc_html($player['nome']); ?></h4>
+                                                <div class="flex flex-col mt-0.5">
+                                                    <span class="text-[10px] font-bold text-gray-500 uppercase"><?php echo esc_html($player['posicao']); ?></span>
+                                                    <span class="text-[9px] text-gray-400 truncate"><?php echo esc_html($player['clube']); ?></span>
+                                                </div>
+                                            </div>
+                                            <i class="fas fa-chevron-right text-slate-700 group-hover:text-laranja transition mr-2"></i>
+                                        </a>
+                                    <?php endforeach; ?>
                                 </div>
-                                <div class="flex-1">
-                                    <h3 class="font-black uppercase italic text-sm group-hover:text-laranja transition"><?php echo $j->post_title; ?></h3>
-                                    <div class="flex flex-col">
-                                        <span class="text-[10px] font-bold text-gray-500 uppercase"><?php echo $posicao; ?></span>
-                                        <span class="text-[9px] text-gray-400"><?php echo $clube; ?></span>
-                                    </div>
-                                </div>
-                                <i class="fas fa-chevron-right text-slate-700 group-hover:text-laranja transition mr-2"></i>
                             </div>
                         <?php endforeach; ?>
                     </div>

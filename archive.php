@@ -156,7 +156,7 @@
                                         </div>
                                         
                                         <a href="${jogo.link}" class="w-full bg-slate-700 hover:bg-laranja text-white text-[11px] font-black py-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group/btn shadow-lg hover:shadow-laranja/20 uppercase">
-                                            Assistir Agora
+                                            Saiba mais sobre o jogo
                                             <i class="fas fa-play text-[8px] group-hover/btn:translate-x-1 transition-transform"></i>
                                         </a>
                                     </div>

@@ -443,6 +443,8 @@ function adicionar_meta_boxes_especificas() {
 add_action('add_meta_boxes', 'adicionar_meta_boxes_especificas');
 
 function render_meta_box_selecao($post) {
+    wp_nonce_field('salvar_dados_selecao', 'selecao_nonce');
+    $sigla = get_post_meta($post->ID, 'sigla_selecao', true);
     $tecnico = get_post_meta($post->ID, 'tecnico', true);
     $ranking = get_post_meta($post->ID, 'ranking_fifa', true);
     $grupo = get_post_meta($post->ID, 'grupo_selecao', true);
@@ -450,6 +452,10 @@ function render_meta_box_selecao($post) {
     $participacoes = get_post_meta($post->ID, 'participacoes', true);
     ?>
     <style>.wp-admin-field { margin-bottom: 15px; } .wp-admin-field label { display: block; font-weight: bold; margin-bottom: 5px; } .wp-admin-field input, .wp-admin-field select { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ccc; }</style>
+    <div class="wp-admin-field">
+        <label>Sigla da Seleção (3 letras):</label>
+        <input type="text" name="sigla_selecao" value="<?php echo esc_attr($sigla); ?>" placeholder="Ex: BRA" maxlength="3" style="width:100%;">
+    </div>
     <div class="wp-admin-field">
         <label>Cor Predominante (Hexadecimal):</label>
         <input type="color" name="cor_primaria" value="<?php echo esc_attr($cor); ?>" style="height:40px;">
@@ -474,6 +480,7 @@ function render_meta_box_selecao($post) {
 }
 
 function render_meta_box_jogador($post) {
+    wp_nonce_field('salvar_dados_jogador', 'jogador_nonce');
     $selecao_id = get_post_meta($post->ID, 'selecao_vinculada', true);
     $posicao = get_post_meta($post->ID, 'posicao', true);
     $numero = get_post_meta($post->ID, 'numero_camisa', true);
@@ -507,18 +514,34 @@ function render_meta_box_jogador($post) {
 }
 
 function salvar_meta_boxes_assistir_jogos($post_id) {
-    // Verificar Nonces
-    if (!isset($_POST['jogo_nonce']) || !wp_verify_nonce($_POST['jogo_nonce'], 'salvar_dados_jogo')) {
-        if (!isset($_POST['bar_nonce']) || !wp_verify_nonce($_POST['bar_nonce'], 'salvar_dados_bar')) {
-            return;
-        }
-    }
-
     // Não salvar em auto-save
     if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
 
     // Verificar permissões
     if (!current_user_can('edit_post', $post_id)) return;
+
+    // Verificar Nonces dependendo do post type
+    $post_type = get_post_type($post_id);
+
+    if ($post_type === 'jogo' || $post_type === 'jogo_copa') {
+        if (!isset($_POST['jogo_nonce']) || !wp_verify_nonce($_POST['jogo_nonce'], 'salvar_dados_jogo')) {
+            return;
+        }
+    } elseif ($post_type === 'bar') {
+        if (!isset($_POST['bar_nonce']) || !wp_verify_nonce($_POST['bar_nonce'], 'salvar_dados_bar')) {
+            return;
+        }
+    } elseif ($post_type === 'selecao') {
+        if (!isset($_POST['selecao_nonce']) || !wp_verify_nonce($_POST['selecao_nonce'], 'salvar_dados_selecao')) {
+            return;
+        }
+    } elseif ($post_type === 'jogador') {
+        if (!isset($_POST['jogador_nonce']) || !wp_verify_nonce($_POST['jogador_nonce'], 'salvar_dados_jogador')) {
+            return;
+        }
+    } else {
+        return;
+    }
 
     // Campos de texto simples
     $campos_texto = array(
@@ -548,7 +571,7 @@ function salvar_meta_boxes_assistir_jogos($post_id) {
     }
 
     // Campos de Seleção e Jogador
-    $campos_extras = array('tecnico', 'ranking_fifa', 'grupo_selecao', 'selecao_vinculada', 'posicao', 'numero_camisa', 'clube_atual', 'cor_primaria', 'participacoes');
+    $campos_extras = array('tecnico', 'ranking_fifa', 'grupo_selecao', 'selecao_vinculada', 'posicao', 'numero_camisa', 'clube_atual', 'cor_primaria', 'participacoes', 'sigla_selecao');
     foreach ($campos_extras as $campo) {
         if (isset($_POST[$campo])) {
             update_post_meta($post_id, $campo, sanitize_text_field($_POST[$campo]));
