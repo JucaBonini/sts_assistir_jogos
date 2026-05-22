@@ -174,8 +174,45 @@ function api_football_sincronizar_jogos( $data_sincronizacao = null, $leagues_to
             'post_status'    => 'any'
         ));
 
-        $post_title = "{$home_name} x {$away_name}";
+        // Formatar data local do jogo para o padrão brasileiro
+        try {
+            $date_obj = new DateTime( $game_date );
+            $game_date_br = $date_obj->format( 'd/m/Y' );
+        } catch ( Exception $e ) {
+            $game_date_br = date( 'd/m/Y' );
+        }
+
+        $post_title = "{$home_name} x {$away_name} - {$game_date_br}";
+        $post_name  = sanitize_title( "{$home_name} x {$away_name} {$game_date_br}" );
         $is_new = true;
+
+        // Obter campeonato e canais padrão
+        $comp_code = $item['competition']['code'];
+        $league_name = isset( FOOTBALL_DATA_DEFAULT_LEAGUES[$comp_code] ) ? FOOTBALL_DATA_DEFAULT_LEAGUES[$comp_code] : $item['competition']['name'];
+
+        $default_channels_map = array(
+            'BSA' => array( 'Globo', 'SporTV', 'Premiere' ),
+            'CL'  => array( 'TNT Sports', 'Max', 'SBT' ),
+            'PL'  => array( 'ESPN', 'Disney+' ),
+            'PD'  => array( 'ESPN', 'Disney+' )
+        );
+        $channels = isset( $default_channels_map[$comp_code] ) ? $default_channels_map[$comp_code] : array();
+
+        // Mapear rodada ou fase do campeonato
+        $rodada_exibida = '';
+        if ( $stage_api === 'REGULAR_SEASON' && ! empty( $matchday ) ) {
+            $rodada_exibida = "{$matchday}ª Rodada";
+        } else {
+            // Traduzir fases eliminatórias/copa
+            $fases = array(
+                'GROUP_STAGE'     => 'Fase de Grupos',
+                'ROUND_OF_16'     => 'Oitavas de Final',
+                'QUARTER_FINALS'  => 'Quartas de Final',
+                'SEMI_FINALS'     => 'Semifinal',
+                'FINAL'           => 'Final'
+            );
+            $rodada_exibida = isset( $fases[$stage_api] ) ? $fases[$stage_api] : $stage_api;
+        }
 
         if ( ! empty( $existing_posts ) ) {
             $post_id = $existing_posts[0]->ID;
@@ -183,14 +220,21 @@ function api_football_sincronizar_jogos( $data_sincronizacao = null, $leagues_to
             
             wp_update_post( array(
                 'ID'         => $post_id,
-                'post_title' => $post_title
+                'post_title' => $post_title,
+                'post_name'  => $post_name
             ));
         } else {
+            // Gerar conteúdo dinâmico preenchendo os placeholders com dados reais da API
+            $canais_txt = ! empty( $channels ) ? implode( ', ', $channels ) : 'A definir';
+            $post_content = "<h2>Detalhes do Jogo</h2>\n<p>Jogo: {$home_name} x {$away_name}</p>\n<p>Data: {$game_date_br}</p>\n<p>Horário de início: {$game_time}</p>\n" . ( ! empty( $rodada_exibida ) ? "<p>Rodada: {$rodada_exibida}</p>\n" : "" ) . "\n<p>As escalações oficiais de ambas as equipes serão divulgadas cerca de uma hora antes do apito inicial.</p>\n<p>Os resultados ao vivo, os lances do jogo e as estatísticas são atualizados em tempo real assim que a partida começa.</p>\n<p>A cobertura da partida inclui listas confirmadas de canais de TV, opções de streaming e atualizações ao vivo.</p>\n<p>Todas as emissoras listadas são detentoras oficiais dos direitos desta partida.</p>\n\n<h3>Como assistir {$home_name} x {$away_name} no Brasil</h3>\n<p>No Brasil, o jogo será exibido ao vivo em: {$canais_txt}.</p>\n\n<h3>Como assistir {$home_name} x {$away_name} no resto do mundo</h3>\n<p>Os torcedores podem assistir ao jogo ao vivo na TV e online através das emissoras oficiais. Use a grade de programação acima para encontrar a transmissão oficial ao vivo disponível na sua localização.</p>\n\n<h3>Como assistir à competição {$league_name}</h3>\n<p>No território brasileiro, você pode assistir aos jogos da competição {$league_name} ao vivo por: {$canais_txt}.</p>\n\n<hr />\n<h3>Aviso Legal de Conteúdo</h3>\n<p>Este website atua estritamente como um guia informativo de programação esportiva. As listas de jogos e eventos aqui publicadas referem-se exclusivamente aos portadores oficiais de direitos televisivos autorizados. As transmissões estão disponíveis em plataformas legítimas como TV aberta, cabo, satélite, e aplicativos oficiais. Nosso objetivo é facilitar o acesso do torcedor aos canais legais, providenciando links diretos para as plataformas dos transmissores oficiais sempre que disponível. Ressaltamos que o acesso a esses conteúdos pode exigir assinatura paga ou autenticação com um provedor de Internet/TV. <strong>Este site não hospeda, não transmite e não realiza a retransmissão de qualquer sinal audiovisual.</strong> Embora busquemos a máxima precisão, os horários de exibição são de inteira responsabilidade das emissoras e podem sofrer alterações sem aviso prévio. Se encontrar alguma informação incorreta, por favor, entre em contato conosco.</p>";
+
             // Inserir novo jogo
             $post_id = wp_insert_post( array(
-                'post_title'  => $post_title,
-                'post_status' => 'publish',
-                'post_type'   => 'jogo'
+                'post_title'   => $post_title,
+                'post_name'    => $post_name,
+                'post_status'  => 'publish',
+                'post_type'    => 'jogo',
+                'post_content' => $post_content
             ));
         }
 
@@ -207,22 +251,6 @@ function api_football_sincronizar_jogos( $data_sincronizacao = null, $leagues_to
             update_post_meta( $post_id, 'data_jogo', $game_date );
             update_post_meta( $post_id, 'horario', $game_time );
             update_post_meta( $post_id, 'estadio', $venue );
-            
-            // Mapear rodada ou fase do campeonato
-            $rodada_exibida = '';
-            if ( $stage_api === 'REGULAR_SEASON' && ! empty( $matchday ) ) {
-                $rodada_exibida = "{$matchday}ª Rodada";
-            } else {
-                // Traduzir fases eliminatórias/copa
-                $fases = array(
-                    'GROUP_STAGE'     => 'Fase de Grupos',
-                    'ROUND_OF_16'     => 'Oitavas de Final',
-                    'QUARTER_FINALS'  => 'Quartas de Final',
-                    'SEMI_FINALS'     => 'Semifinal',
-                    'FINAL'           => 'Final'
-                );
-                $rodada_exibida = isset( $fases[$stage_api] ) ? $fases[$stage_api] : $stage_api;
-            }
             update_post_meta( $post_id, 'rodada', $rodada_exibida );
 
             // Associar à taxonomia de Campeonatos
@@ -261,6 +289,36 @@ function api_football_sincronizar_jogos( $data_sincronizacao = null, $leagues_to
 
             if ( $esporte_term_id > 0 ) {
                 wp_set_object_terms( $post_id, $esporte_term_id, 'esporte' );
+            }
+
+            // Associar à taxonomia de Canais (Onde Assistir)
+            if ( ! empty( $channels ) ) {
+                $current_channels = wp_get_post_terms( $post_id, 'canal', array( 'fields' => 'ids' ) );
+                if ( empty( $current_channels ) ) {
+                    $term_ids = array();
+                    foreach ( $channels as $channel_name ) {
+                        $term = term_exists( $channel_name, 'canal' );
+                        if ( ! $term ) {
+                            $term = wp_insert_term( $channel_name, 'canal' );
+                        }
+                        
+                        $term_id = 0;
+                        if ( ! is_wp_error( $term ) && isset( $term['term_id'] ) ) {
+                            $term_id = intval( $term['term_id'] );
+                        } elseif ( isset( $term->term_id ) ) {
+                            $term_id = intval( $term->term_id );
+                        }
+                        
+                        if ( $term_id > 0 ) {
+                            $term_ids[] = $term_id;
+                        }
+                    }
+                    
+                    if ( ! empty( $term_ids ) ) {
+                        wp_set_object_terms( $post_id, $term_ids, 'canal' );
+                        update_post_meta( $post_id, 'onde_assistir', $term_ids[0] );
+                    }
+                }
             }
 
             if ( $is_new ) {

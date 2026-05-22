@@ -970,7 +970,17 @@ function assistir_jogos_faq_schema() {
         $time_casa = get_post_meta(get_the_ID(), 'time_casa', true);
         $time_fora = get_post_meta(get_the_ID(), 'time_fora', true);
         $horario = get_post_meta(get_the_ID(), 'horario', true);
-        $canal = get_post_meta(get_the_ID(), 'onde_assistir', true);
+        $canal_id = get_post_meta(get_the_ID(), 'onde_assistir', true);
+        $canal = '';
+        if ( $canal_id ) {
+            $term = get_term( $canal_id, 'canal' );
+            if ( $term && ! is_wp_error( $term ) ) {
+                $canal = $term->name;
+            }
+        }
+        if ( empty( $canal ) ) {
+            $canal = 'A definir';
+        }
         $campeonato = wp_get_post_terms(get_the_ID(), 'campeonato', array('fields' => 'names'))[0] ?? 'Futebol';
 
         $faq = array(
