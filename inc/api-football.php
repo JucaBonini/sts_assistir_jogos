@@ -12,8 +12,74 @@ define( 'FOOTBALL_DATA_DEFAULT_LEAGUES', array(
     'BSA' => 'Brasileirão Série A',
     'CL'  => 'Champions League',
     'PL'  => 'Premier League',
-    'PD'  => 'La Liga'
+    'PD'  => 'La Liga',
+    'WC'  => 'Copa do Mundo'
 ));
+
+/**
+ * Tradução de seleções da Copa de Inglês para Português
+ */
+function api_football_traduzir_selecao( $name ) {
+    $map = array(
+        'Brazil' => 'Brasil',
+        'Germany' => 'Alemanha',
+        'Argentina' => 'Argentina',
+        'France' => 'França',
+        'Portugal' => 'Portugal',
+        'England' => 'Inglaterra',
+        'Spain' => 'Espanha',
+        'Italy' => 'Itália',
+        'Belgium' => 'Bélgica',
+        'Netherlands' => 'Holanda',
+        'Uruguay' => 'Uruguai',
+        'Colombia' => 'Colômbia',
+        'Mexico' => 'México',
+        'United States' => 'Estados Unidos',
+        'USA' => 'Estados Unidos',
+        'Canada' => 'Canadá',
+        'Japan' => 'Japão',
+        'South Korea' => 'República da Coreia',
+        'Korea Republic' => 'República da Coreia',
+        'Iran' => 'RI do Irã',
+        'Morocco' => 'Marrocos',
+        'Senegal' => 'Senegal',
+        'Tunisia' => 'Tunísia',
+        'Cameroon' => 'Camarões',
+        'Ghana' => 'Gana',
+        'Ecuador' => 'Equador',
+        'Switzerland' => 'Suíça',
+        'Croatia' => 'Croácia',
+        'Serbia' => 'Sérvia',
+        'Poland' => 'Polônia',
+        'Australia' => 'Austrália',
+        'Saudi Arabia' => 'Arábia Saudita',
+        'Costa Rica' => 'Costa Rica',
+        'Wales' => 'País de Gales',
+        'Denmark' => 'Dinamarca',
+        'Sweden' => 'Suécia',
+        'Turkey' => 'Turquia',
+        'Ukraine' => 'Ucrânia',
+        'Algeria' => 'Argélia',
+        'Austria' => 'Áustria',
+        'Bosnia and Herzegovina' => 'Bósnia e Herzegovina',
+        'Chile' => 'Chile',
+        'Czech Republic' => 'Tchéquia',
+        'Czechia' => 'Tchéquia',
+        'Egypt' => 'Egito',
+        'Greece' => 'Grécia',
+        'Ivory Coast' => 'Costa do Marfim',
+        'Nigeria' => 'Nigéria',
+        'Norway' => 'Noruega',
+        'Paraguay' => 'Paraguai',
+        'Peru' => 'Peru',
+        'Romania' => 'Romênia',
+        'Russia' => 'Rússia',
+        'Slovakia' => 'Eslováquia',
+        'South Africa' => 'África do Sul',
+        'Venezuela' => 'Venezuela'
+    );
+    return isset( $map[$name] ) ? $map[$name] : $name;
+}
 
 // Registrar página de menu no WordPress Admin
 function api_football_adicionar_menu() {
@@ -165,9 +231,12 @@ function api_football_sincronizar_jogos( $data_sincronizacao = null, $leagues_to
             $status_jogo = 'Encerrado';
         }
 
+        $comp_code = $item['competition']['code'];
+        $post_type_dest = ( $comp_code === 'WC' ) ? 'jogo_copa' : 'jogo';
+
         // Verificar se o post do jogo já existe pelo football_data_match_id
         $existing_posts = get_posts( array(
-            'post_type'      => 'jogo',
+            'post_type'      => $post_type_dest,
             'meta_key'       => 'football_data_match_id',
             'meta_value'     => $match_id,
             'posts_per_page' => 1,
@@ -187,14 +256,14 @@ function api_football_sincronizar_jogos( $data_sincronizacao = null, $leagues_to
         $is_new = true;
 
         // Obter campeonato e canais padrão
-        $comp_code = $item['competition']['code'];
         $league_name = isset( FOOTBALL_DATA_DEFAULT_LEAGUES[$comp_code] ) ? FOOTBALL_DATA_DEFAULT_LEAGUES[$comp_code] : $item['competition']['name'];
 
         $default_channels_map = array(
             'BSA' => array( 'Globo', 'SporTV', 'Premiere' ),
             'CL'  => array( 'TNT Sports', 'Max', 'SBT' ),
             'PL'  => array( 'ESPN', 'Disney+' ),
-            'PD'  => array( 'ESPN', 'Disney+' )
+            'PD'  => array( 'ESPN', 'Disney+' ),
+            'WC'  => array( 'Globo', 'SporTV', 'CazéTV' )
         );
         $channels = isset( $default_channels_map[$comp_code] ) ? $default_channels_map[$comp_code] : array();
 
@@ -233,7 +302,7 @@ function api_football_sincronizar_jogos( $data_sincronizacao = null, $leagues_to
                 'post_title'   => $post_title,
                 'post_name'    => $post_name,
                 'post_status'  => 'publish',
-                'post_type'    => 'jogo',
+                'post_type'    => $post_type_dest,
                 'post_content' => $post_content
             ));
         }
@@ -252,6 +321,93 @@ function api_football_sincronizar_jogos( $data_sincronizacao = null, $leagues_to
             update_post_meta( $post_id, 'horario', $game_time );
             update_post_meta( $post_id, 'estadio', $venue );
             update_post_meta( $post_id, 'rodada', $rodada_exibida );
+
+            // Se for jogo da Copa, buscar e associar os IDs das seleções e outros metadados da Copa
+            if ( $comp_code === 'WC' ) {
+                $home_translated = api_football_traduzir_selecao( $home_name );
+                $away_translated = api_football_traduzir_selecao( $away_name );
+                
+                $casa_post = get_page_by_title( $home_translated, OBJECT, 'selecao' );
+                if ( ! $casa_post ) {
+                    $casa_query = get_posts( array(
+                        'post_type' => 'selecao',
+                        'title' => $home_translated,
+                        'posts_per_page' => 1
+                    ));
+                    if ( ! empty( $casa_query ) ) {
+                        $casa_post = $casa_query[0];
+                    }
+                }
+                
+                $fora_post = get_page_by_title( $away_translated, OBJECT, 'selecao' );
+                if ( ! $fora_post ) {
+                    $fora_query = get_posts( array(
+                        'post_type' => 'selecao',
+                        'title' => $away_translated,
+                        'posts_per_page' => 1
+                    ));
+                    if ( ! empty( $fora_query ) ) {
+                        $fora_post = $fora_query[0];
+                    }
+                }
+                
+                if ( $casa_post ) {
+                    update_post_meta( $post_id, 'time_casa_id', $casa_post->ID );
+                }
+                if ( $fora_post ) {
+                    update_post_meta( $post_id, 'time_fora_id', $fora_post->ID );
+                }
+                
+                // Mapear grupo
+                $grupo_api = isset( $item['group'] ) ? $item['group'] : '';
+                if ( ! empty( $grupo_api ) ) {
+                    $grupo_formatado = str_replace( array('GROUP_', 'Group '), 'Grupo ', $grupo_api );
+                    update_post_meta( $post_id, 'grupo_copa', $grupo_formatado );
+                }
+                
+                // Mapear fase
+                $fase_formatada = 'Fase de Grupos';
+                if ( $stage_api === 'ROUND_OF_16' ) {
+                    $fase_formatada = 'Oitavas de Final';
+                } elseif ( $stage_api === 'QUARTER_FINALS' ) {
+                    $fase_formatada = 'Quartas de Final';
+                } elseif ( $stage_api === 'SEMI_FINALS' ) {
+                    $fase_formatada = 'Semifinal';
+                } elseif ( $stage_api === 'FINAL' ) {
+                    $fase_formatada = 'Final';
+                } elseif ( $stage_api === 'ROUND_OF_32' || $stage_api === 'LAST_32' ) {
+                    $fase_formatada = 'Rodada de 32';
+                }
+                update_post_meta( $post_id, 'fase_copa', $fase_formatada );
+                
+                // Mapear Cidade/País Sede baseado no Estádio (Copa 2026)
+                $estadio_limpo = mb_strtolower($venue);
+                $cidade = '';
+                $pais = '';
+                if (strpos($estadio_limpo, 'azteca') !== false) { $cidade = 'Cidade do México'; $pais = 'México'; }
+                elseif (strpos($estadio_limpo, 'bbva') !== false || strpos($estadio_limpo, 'monterrey') !== false) { $cidade = 'Monterrey'; $pais = 'México'; }
+                elseif (strpos($estadio_limpo, 'akron') !== false || strpos($estadio_limpo, 'guadalajara') !== false) { $cidade = 'Guadalajara'; $pais = 'México'; }
+                elseif (strpos($estadio_limpo, 'bc place') !== false || strpos($estadio_limpo, 'vancouver') !== false) { $cidade = 'Vancouver'; $pais = 'Canadá'; }
+                elseif (strpos($estadio_limpo, 'bmo') !== false || strpos($estadio_limpo, 'toronto') !== false) { $cidade = 'Toronto'; $pais = 'Canadá'; }
+                elseif (strpos($estadio_limpo, 'metlife') !== false || strpos($estadio_limpo, 'new york') !== false || strpos($estadio_limpo, 'east rutherford') !== false) { $cidade = 'Nova York/Nova Jersey'; $pais = 'EUA'; }
+                elseif (strpos($estadio_limpo, 'sofi') !== false || strpos($estadio_limpo, 'los angeles') !== false) { $cidade = 'Los Angeles'; $pais = 'EUA'; }
+                elseif (strpos($estadio_limpo, 'mercedes-benz') !== false || strpos($estadio_limpo, 'atlanta') !== false) { $cidade = 'Atlanta'; $pais = 'EUA'; }
+                elseif (strpos($estadio_limpo, 'gillette') !== false || strpos($estadio_limpo, 'boston') !== false) { $cidade = 'Boston'; $pais = 'EUA'; }
+                elseif (strpos($estadio_limpo, 'at&t') !== false || strpos($estadio_limpo, 'dallas') !== false || strpos($estadio_limpo, 'arlington') !== false) { $cidade = 'Dallas'; $pais = 'EUA'; }
+                elseif (strpos($estadio_limpo, 'nrg') !== false || strpos($estadio_limpo, 'houston') !== false) { $cidade = 'Houston'; $pais = 'EUA'; }
+                elseif (strpos($estadio_limpo, 'arrowhead') !== false || strpos($estadio_limpo, 'kansas') !== false) { $cidade = 'Kansas City'; $pais = 'EUA'; }
+                elseif (strpos($estadio_limpo, 'hard rock') !== false || strpos($estadio_limpo, 'miami') !== false) { $cidade = 'Miami'; $pais = 'EUA'; }
+                elseif (strpos($estadio_limpo, 'lincoln financial') !== false || strpos($estadio_limpo, 'philadelphia') !== false) { $cidade = 'Filadélfia'; $pais = 'EUA'; }
+                elseif (strpos($estadio_limpo, 'levi') !== false || strpos($estadio_limpo, 'san francisco') !== false || strpos($estadio_limpo, 'santa clara') !== false) { $cidade = 'São Francisco'; $pais = 'EUA'; }
+                elseif (strpos($estadio_limpo, 'lumen') !== false || strpos($estadio_limpo, 'seattle') !== false) { $cidade = 'Seattle'; $pais = 'EUA'; }
+                
+                if ( ! empty( $cidade ) ) {
+                    update_post_meta( $post_id, 'cidade_sede', $cidade );
+                }
+                if ( ! empty( $pais ) ) {
+                    update_post_meta( $post_id, 'pais_sede', $pais );
+                }
+            }
 
             // Associar à taxonomia de Campeonatos
             $comp_code = $item['competition']['code'];
