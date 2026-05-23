@@ -219,11 +219,11 @@ function bsa_obter_status_formatado( $status ) {
             <!-- NAVIGATION TABS -->
             <section class="flex justify-center mb-10">
                 <div class="bg-slate-900/60 p-1.5 rounded-2xl flex gap-1.5 border border-slate-800/80">
-                    <button data-tab="classificacao" class="tab-btn active px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-2">
-                        <i class="fas fa-table text-sm"></i> Classificação
-                    </button>
-                    <button data-tab="jogos" class="tab-btn px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-2">
+                    <button data-tab="jogos" class="tab-btn active px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-2">
                         <i class="fas fa-calendar-alt text-sm"></i> Jogos e Rodadas
+                    </button>
+                    <button data-tab="classificacao" class="tab-btn px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-2">
+                        <i class="fas fa-table text-sm"></i> Classificação
                     </button>
                     <button data-tab="artilharia" class="tab-btn px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 flex items-center gap-2">
                         <i class="fas fa-fire text-sm"></i> Artilharia
@@ -232,7 +232,7 @@ function bsa_obter_status_formatado( $status ) {
             </section>
 
             <!-- TAB CONTENT: CLASSIFICACAO -->
-            <section id="tab-classificacao" class="tab-content transition-all duration-300">
+            <section id="tab-classificacao" class="tab-content hidden transition-all duration-300">
                 
                 <!-- LEGENDA DAS ZONAS -->
                 <div class="flex flex-wrap gap-4 mb-6 text-[10px] uppercase font-bold text-gray-400 bg-slate-900/25 p-4 rounded-2xl border border-slate-900 justify-center">
@@ -324,7 +324,7 @@ function bsa_obter_status_formatado( $status ) {
             </section>
 
             <!-- TAB CONTENT: JOGOS -->
-            <section id="tab-jogos" class="tab-content hidden transition-all duration-300">
+            <section id="tab-jogos" class="tab-content transition-all duration-300">
                 
                 <!-- SELECTOR DE RODADAS -->
                 <div class="flex items-center justify-between bg-slate-900/60 border border-slate-800/80 p-3.5 rounded-2xl mb-8 max-w-lg mx-auto">

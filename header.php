@@ -138,6 +138,13 @@
                     </div>
                 </div>
 
+                <a href="<?php echo home_url('/brasileirao'); ?>" class="text-verde-menta font-black flex items-center gap-2 group hover:scale-105 transition-transform">
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-verde-menta opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-verde-menta"></span>
+                    </span>
+                    BRASILEIRÃO 2026
+                </a>
                 <a href="<?php echo home_url('/copa-do-mundo'); ?>" class="text-laranja font-black flex items-center gap-2 group hover:scale-105 transition-transform">
                     <span class="relative flex h-2 w-2">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-laranja opacity-75"></span>
@@ -155,6 +162,13 @@
         </div>
         <!-- Mobile menu -->
         <div id="mobile-menu" class="hidden md:hidden bg-slate-800 border-t border-slate-700 px-4 py-3 flex flex-col space-y-3 text-sm">
+            <a href="<?php echo home_url('/brasileirao'); ?>" class="text-verde-menta font-black flex items-center gap-2 py-2 border-b border-white/5">
+                <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-verde-menta opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-verde-menta"></span>
+                </span>
+                BRASILEIRÃO 2026
+            </a>
             <a href="<?php echo home_url('/copa-do-mundo'); ?>" class="text-laranja font-black flex items-center gap-2 py-2 border-b border-white/5">
                 <span class="relative flex h-2 w-2">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-laranja opacity-75"></span>
