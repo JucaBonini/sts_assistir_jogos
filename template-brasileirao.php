@@ -377,6 +377,7 @@ function bsa_obter_status_formatado( $status ) {
                                     $is_local = isset( $local_games_mapped[$match_id] );
                                     $local_link = $is_local ? $local_games_mapped[$match_id]['link'] : '#';
                                     $local_channels = $is_local ? $local_games_mapped[$match_id]['channels'] : '';
+                                    $display_channels = ! empty( $local_channels ) ? $local_channels : 'Globo, SporTV, Premiere';
                             ?>
                                     <div class="glass-card rounded-3xl p-5 border border-slate-900/60 transition-all duration-300 relative flex flex-col justify-between overflow-hidden">
                                         
@@ -420,15 +421,34 @@ function bsa_obter_status_formatado( $status ) {
                                             </div>
                                         </div>
 
+                                        <!-- ODDS DO JOGO -->
+                                        <?php 
+                                        $odd_casa = isset( $match['odds']['homeWin'] ) ? $match['odds']['homeWin'] : '';
+                                        $odd_empate = isset( $match['odds']['draw'] ) ? $match['odds']['draw'] : '';
+                                        $odd_fora = isset( $match['odds']['awayWin'] ) ? $match['odds']['awayWin'] : '';
+                                        if ( ! empty( $odd_casa ) || ! empty( $odd_empate ) || ! empty( $odd_fora ) ) :
+                                        ?>
+                                            <div class="mt-3 bg-slate-950/40 p-2.5 rounded-2xl border border-slate-900/60 flex items-center justify-between gap-2">
+                                                <div class="text-[8px] font-black uppercase text-gray-500 tracking-wider">Odds Médias</div>
+                                                <div class="flex gap-1.5 text-[10px]">
+                                                    <span class="bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800 text-gray-400 font-bold">
+                                                        1: <strong class="text-verde-menta font-black"><?php echo number_format($odd_casa, 2); ?></strong>
+                                                    </span>
+                                                    <span class="bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800 text-gray-400 font-bold">
+                                                        X: <strong class="text-laranja font-black"><?php echo number_format($odd_empate, 2); ?></strong>
+                                                    </span>
+                                                    <span class="bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800 text-gray-400 font-bold">
+                                                        2: <strong class="text-red-400 font-black"><?php echo number_format($odd_fora, 2); ?></strong>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+
                                         <!-- Transmissão e Link -->
                                         <div class="mt-4 pt-3 border-t border-slate-900/40 flex flex-col sm:flex-row items-center justify-between gap-3">
                                             <div class="text-[10px] text-gray-400 font-medium">
-                                                <?php if ( ! empty( $local_channels ) ) : ?>
-                                                    <span class="text-laranja font-black uppercase text-[8px] block tracking-widest mb-0.5">Onde assistir</span>
-                                                    <span class="font-bold text-white"><?php echo esc_html( $local_channels ); ?></span>
-                                                <?php else : ?>
-                                                    <span class="text-gray-500 italic">Transmissão oficial a definir</span>
-                                                <?php endif; ?>
+                                                <span class="text-laranja font-black uppercase text-[8px] block tracking-widest mb-0.5">Onde assistir</span>
+                                                <span class="font-bold text-white"><?php echo esc_html( $display_channels ); ?></span>
                                             </div>
                                             
                                             <?php if ( $is_local ) : ?>
