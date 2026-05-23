@@ -702,3 +702,149 @@ function api_football_renderizar_pagina() {
     </div>
     <?php
 }
+
+/**
+ * Busca a classificação do Brasileirão Série A (BSA) na API e faz cache usando Transients do WordPress.
+ */
+function api_football_obter_classificacao_brasileirao() {
+    $api_key = get_option( 'api_football_key' );
+    if ( empty( $api_key ) ) {
+        return new WP_Error( 'api_key_missing', 'Chave da API não configurada.' );
+    }
+
+    $transient_key = 'api_football_bsa_standings';
+    $cached_data = get_transient( $transient_key );
+
+    if ( false !== $cached_data ) {
+        return $cached_data;
+    }
+
+    $url = 'https://api.football-data.org/v4/competitions/BSA/standings';
+    $response = wp_remote_get( $url, array(
+        'timeout' => 30,
+        'headers' => array(
+            'X-Auth-Token' => $api_key
+        )
+    ));
+
+    if ( is_wp_error( $response ) ) {
+        return $response;
+    }
+
+    $body = wp_remote_retrieve_body( $response );
+    $data = json_decode( $body, true );
+
+    if ( isset( $data['errorCode'] ) || ! isset( $data['standings'] ) ) {
+        $msg = isset( $data['message'] ) ? $data['message'] : 'Erro desconhecido ao carregar classificação.';
+        return new WP_Error( 'api_error', $msg );
+    }
+
+    // Cache por 12 horas
+    set_transient( $transient_key, $data['standings'], 12 * HOUR_IN_SECONDS );
+
+    return $data['standings'];
+}
+
+/**
+ * Busca a artilharia do Brasileirão Série A (BSA) na API e faz cache usando Transients do WordPress.
+ */
+function api_football_obter_artilharia_brasileirao() {
+    $api_key = get_option( 'api_football_key' );
+    if ( empty( $api_key ) ) {
+        return new WP_Error( 'api_key_missing', 'Chave da API não configurada.' );
+    }
+
+    $transient_key = 'api_football_bsa_scorers';
+    $cached_data = get_transient( $transient_key );
+
+    if ( false !== $cached_data ) {
+        return $cached_data;
+    }
+
+    $url = 'https://api.football-data.org/v4/competitions/BSA/scorers';
+    $response = wp_remote_get( $url, array(
+        'timeout' => 30,
+        'headers' => array(
+            'X-Auth-Token' => $api_key
+        )
+    ));
+
+    if ( is_wp_error( $response ) ) {
+        return $response;
+    }
+
+    $body = wp_remote_retrieve_body( $response );
+    $data = json_decode( $body, true );
+
+    if ( isset( $data['errorCode'] ) || ! isset( $data['scorers'] ) ) {
+        $msg = isset( $data['message'] ) ? $data['message'] : 'Erro desconhecido ao carregar artilharia.';
+        return new WP_Error( 'api_error', $msg );
+    }
+
+    // Cache por 12 horas
+    set_transient( $transient_key, $data['scorers'], 12 * HOUR_IN_SECONDS );
+
+    return $data['scorers'];
+}
+
+/**
+ * Busca todos os jogos do Brasileirão Série A (BSA) na API e faz cache usando Transients do WordPress.
+ */
+function api_football_obter_jogos_brasileirao() {
+    $api_key = get_option( 'api_football_key' );
+    if ( empty( $api_key ) ) {
+        return new WP_Error( 'api_key_missing', 'Chave da API não configurada.' );
+    }
+
+    $transient_key = 'api_football_bsa_matches';
+    $cached_data = get_transient( $transient_key );
+
+    if ( false !== $cached_data ) {
+        return $cached_data;
+    }
+
+    $url = 'https://api.football-data.org/v4/competitions/BSA/matches';
+    $response = wp_remote_get( $url, array(
+        'timeout' => 30,
+        'headers' => array(
+            'X-Auth-Token' => $api_key
+        )
+    ));
+
+    if ( is_wp_error( $response ) ) {
+        return $response;
+    }
+
+    $body = wp_remote_retrieve_body( $response );
+    $data = json_decode( $body, true );
+
+    if ( isset( $data['errorCode'] ) || ! isset( $data['matches'] ) ) {
+        $msg = isset( $data['message'] ) ? $data['message'] : 'Erro desconhecido ao carregar jogos.';
+        return new WP_Error( 'api_error', $msg );
+    }
+
+    // Descobrir a rodada atual
+    $current_matchday = 1;
+    if ( isset( $data['matches'][0]['competition']['currentMatchday'] ) ) {
+        $current_matchday = $data['matches'][0]['competition']['currentMatchday'];
+    } else {
+        // Inferir a rodada atual com base nos jogos que ainda não começaram ou que ocorreram recentemente
+        foreach ( $data['matches'] as $match ) {
+            if ( $match['status'] === 'TIMED' || $match['status'] === 'SCHEDULED' ) {
+                $current_matchday = $match['matchday'];
+                break;
+            }
+        }
+    }
+
+    $resultado = array(
+        'matches' => $data['matches'],
+        'currentMatchday' => $current_matchday
+    );
+
+    // Cache por 12 horas
+    set_transient( $transient_key, $resultado, 12 * HOUR_IN_SECONDS );
+
+    return $resultado;
+}
+

@@ -736,6 +736,9 @@ function assistir_jogos_seo_tags() {
         
         $desc = "Saiba onde assistir ao vivo o jogo {$time_casa} x {$time_fora} pela {$campeonato} em {$data_formatada}. Confira o horário ({$horario}), escalações e links de transmissão oficial.";
         echo '<meta name="description" content="' . esc_attr($desc) . '">' . "\n";
+    } elseif ( is_page_template( 'template-brasileirao.php' ) ) {
+        $desc = "Acompanhe a tabela de classificação do Brasileirão Série A 2026 atualizada em tempo real. Veja os próximos jogos, resultados, artilharia completa e onde assistir ao vivo.";
+        echo '<meta name="description" content="' . esc_attr( $desc ) . '">' . "\n";
     }
 }
 add_action('wp_head', 'assistir_jogos_seo_tags');
@@ -816,6 +819,54 @@ function assistir_jogos_schema_event() {
             "description" => wp_strip_all_tags(get_the_excerpt()) ?: wp_trim_words(get_the_content(), 25)
         );
         echo '<script type="application/ld+json">' . json_encode($schema) . '</script>' . "\n";
+    }
+
+    if ( is_page_template( 'template-brasileirao.php' ) ) {
+        $schema_league = array(
+            "@context" => "https://schema.org",
+            "@type" => "SportsLeague",
+            "name" => "Campeonato Brasileiro Série A 2026",
+            "sport" => "Soccer",
+            "alternateName" => "Brasileirão Série A 2026",
+            "location" => array(
+                "@type" => "Place",
+                "name" => "Brasil"
+            )
+        );
+
+        $schema_faq = array(
+            "@context" => "https://schema.org",
+            "@type" => "FAQPage",
+            "mainEntity" => array(
+                array(
+                    "@type" => "Question",
+                    "name" => "Como assistir aos jogos do Brasileirão 2026 ao vivo?",
+                    "acceptedAnswer" => array(
+                        "@type" => "Answer",
+                        "text" => "Você pode acompanhar as transmissões oficiais do Brasileirão 2026 na TV aberta pela Rede Globo, na TV por assinatura pelo SporTV e Premiere (Pay-per-view), além das plataformas de streaming oficiais que detêm os direitos dos clubes mandantes."
+                    )
+                ),
+                array(
+                    "@type" => "Question",
+                    "name" => "Onde encontrar a classificação atualizada do Brasileirão 2026?",
+                    "acceptedAnswer" => array(
+                        "@type" => "Answer",
+                        "text" => "A classificação completa e em tempo real do Campeonato Brasileiro Série A 2026 pode ser encontrada diretamente na nossa página do Brasileirão Hub, com dados oficiais de pontos, jogos, vitórias e saldo de gols."
+                    )
+                ),
+                array(
+                    "@type" => "Question",
+                    "name" => "Quantos times se classificam para a Libertadores no Brasileirão?",
+                    "acceptedAnswer" => array(
+                        "@type" => "Answer",
+                        "text" => "Geralmente, os 6 primeiros colocados (G6) se classificam para a Copa Libertadores da América, sendo que os 4 primeiros garantem vaga direta na fase de grupos e o 5º e 6º disputam a fase preliminar. Esse número pode aumentar dependendo dos campeões da Copa do Brasil, Libertadores e Sul-Americana."
+                    )
+                )
+            )
+        );
+
+        echo '<script type="application/ld+json">' . json_encode($schema_league) . '</script>' . "\n";
+        echo '<script type="application/ld+json">' . json_encode($schema_faq) . '</script>' . "\n";
     }
 }
 add_action('wp_head', 'assistir_jogos_schema_event');
@@ -915,6 +966,9 @@ function custom_seo_title($title) {
     }
     if (is_singular('post')) {
         return get_the_title() . " | Notícias - Assistir Jogos";
+    }
+    if (is_page_template('template-brasileirao.php')) {
+        return "Tabela Brasileirão 2026: Classificação, Jogos e Onde Assistir Ao Vivo";
     }
     return $title;
 }
