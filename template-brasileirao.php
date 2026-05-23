@@ -77,21 +77,38 @@ if ( ! $is_error ) {
     $local_games = get_posts( array(
         'post_type' => 'jogo',
         'posts_per_page' => -1,
-        'meta_query' => array(
-            array(
-                'key' => 'football_data_match_id',
-                'compare' => 'EXISTS'
-            )
-        )
     ));
     foreach ( $local_games as $lg ) {
         $match_api_id = get_post_meta( $lg->ID, 'football_data_match_id', true );
+        $time_casa = mb_strtolower( trim( get_post_meta( $lg->ID, 'time_casa', true ) ) );
+        $time_fora = mb_strtolower( trim( get_post_meta( $lg->ID, 'time_fora', true ) ) );
+        $data_jogo = get_post_meta( $lg->ID, 'data_jogo', true ); // Y-m-d
+        
+        $channels = wp_get_post_terms( $lg->ID, 'canal', array( 'fields' => 'names' ) );
+        $channels_str = ! empty( $channels ) ? implode( ', ', $channels ) : '';
+
+        $game_data = array(
+            'link' => get_permalink( $lg->ID ),
+            'channels' => $channels_str
+        );
+
+        // 1. Mapear por ID da API (se existir)
         if ( $match_api_id ) {
-            $channels = wp_get_post_terms( $lg->ID, 'canal', array( 'fields' => 'names' ) );
-            $local_games_mapped[$match_api_id] = array(
-                'link' => get_permalink( $lg->ID ),
-                'channels' => ! empty( $channels ) ? implode( ', ', $channels ) : ''
-            );
+            $local_games_mapped['id_' . $match_api_id] = $game_data;
+        }
+
+        // 2. Mapear por combinação de Times + Data
+        if ( $time_casa && $time_fora && $data_jogo ) {
+            $slug_date_key = sanitize_title( $time_casa ) . '_' . sanitize_title( $time_fora ) . '_' . $data_jogo;
+            $local_games_mapped['slug_date_' . $slug_date_key] = $game_data;
+        }
+
+        // 3. Mapear por combinação de Times (sem data - fallback)
+        if ( $time_casa && $time_fora ) {
+            $slug_teams_key = sanitize_title( $time_casa ) . '_' . sanitize_title( $time_fora );
+            if ( ! isset( $local_games_mapped['slug_teams_' . $slug_teams_key] ) ) {
+                $local_games_mapped['slug_teams_' . $slug_teams_key] = $game_data;
+            }
         }
     }
 }
@@ -364,19 +381,40 @@ function bsa_obter_status_formatado( $status ) {
                                     // Tratar hora e data local brasileiras
                                     $game_date = 'Data Indefinida';
                                     $game_time = '00:00';
+                                    $game_date_ymd = '';
                                     try {
                                         $utc_date = new DateTime( $match['utcDate'], new DateTimeZone( 'UTC' ) );
                                         $utc_date->setTimezone( new DateTimeZone( 'America/Sao_Paulo' ) );
                                         $game_date = $utc_date->format( 'd/m/Y' );
                                         $game_time = $utc_date->format( 'H:i' );
+                                        $game_date_ymd = $utc_date->format( 'Y-m-d' );
                                     } catch ( Exception $e ) {
                                         // fallback
                                     }
                                     
-                                    // Verificar se o jogo existe localmente no CPT jogo
-                                    $is_local = isset( $local_games_mapped[$match_id] );
-                                    $local_link = $is_local ? $local_games_mapped[$match_id]['link'] : '#';
-                                    $local_channels = $is_local ? $local_games_mapped[$match_id]['channels'] : '';
+                                    // Verificar se o jogo existe localmente no CPT jogo (por ID, Slug de Data ou Fallback de Confronto)
+                                    $home_short = mb_strtolower( trim( $match['homeTeam']['shortName'] ?: $match['homeTeam']['name'] ) );
+                                    $away_short = mb_strtolower( trim( $match['awayTeam']['shortName'] ?: $match['awayTeam']['name'] ) );
+                                    
+                                    $slug_date_key = sanitize_title( $home_short ) . '_' . sanitize_title( $away_short ) . '_' . $game_date_ymd;
+                                    $slug_teams_key = sanitize_title( $home_short ) . '_' . sanitize_title( $away_short );
+                                    
+                                    $is_local = false;
+                                    $local_info = null;
+                                    
+                                    if ( isset( $local_games_mapped['id_' . $match_id] ) ) {
+                                        $is_local = true;
+                                        $local_info = $local_games_mapped['id_' . $match_id];
+                                    } elseif ( ! empty( $game_date_ymd ) && isset( $local_games_mapped['slug_date_' . $slug_date_key] ) ) {
+                                        $is_local = true;
+                                        $local_info = $local_games_mapped['slug_date_' . $slug_date_key];
+                                    } elseif ( isset( $local_games_mapped['slug_teams_' . $slug_teams_key] ) ) {
+                                        $is_local = true;
+                                        $local_info = $local_games_mapped['slug_teams_' . $slug_teams_key];
+                                    }
+                                    
+                                    $local_link = $is_local ? $local_info['link'] : '#';
+                                    $local_channels = $is_local ? $local_info['channels'] : '';
                                     $display_channels = ! empty( $local_channels ) ? $local_channels : 'Globo, SporTV, Premiere';
                             ?>
                                     <div class="glass-card rounded-3xl p-5 border border-slate-900/60 transition-all duration-300 relative flex flex-col justify-between overflow-hidden">
