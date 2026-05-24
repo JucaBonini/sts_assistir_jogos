@@ -26,6 +26,29 @@
     <?php if ( ! has_site_icon() ) : ?>
         <link rel="icon" href="<?php echo get_template_directory_uri(); ?>/assets/images/logtipo_2.webp" sizes="32x32">
     <?php endif; ?>
+
+    <!-- Google Consent Mode v2 Default Settings (LGPD / ECA Digital) -->
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        
+        var savedConsent = localStorage.getItem('lgpd_cookie_consent');
+        var consentState = savedConsent === 'accepted' ? 'granted' : 'denied';
+
+        gtag('consent', 'default', {
+            'ad_storage': consentState,
+            'ad_user_data': consentState,
+            'ad_personalization': consentState,
+            'analytics_storage': consentState,
+            'wait_for_update': 500
+        });
+
+        if (consentState === 'denied') {
+            window.adsbygoogle = window.adsbygoogle || [];
+            window.adsbygoogle.requestNonPersonalizedAds = 1;
+        }
+    </script>
+
     <?php wp_head(); ?>
     
     <!-- Customização da paleta (Tailwind Config) -->

@@ -30,6 +30,31 @@
         </div>
     </footer>
 
+    <!-- BANNER DE COOKIES LGPD & ECA DIGITAL -->
+    <div id="lgpd-cookie-banner" class="fixed bottom-4 left-4 right-4 bg-slate-800 border border-slate-700 rounded-3xl p-6 shadow-2xl z-50 transform translate-y-full transition-transform duration-500 hidden md:max-w-md md:left-4">
+        <div class="space-y-4">
+            <div class="flex items-start gap-4">
+                <div class="w-12 h-12 bg-laranja/20 rounded-2xl flex items-center justify-center text-laranja shrink-0">
+                    <i class="fas fa-cookie-bite text-2xl animate-pulse"></i>
+                </div>
+                <div class="flex-1">
+                    <h4 class="text-white font-bold text-sm leading-tight">Sua Privacidade</h4>
+                    <p class="text-gray-400 text-xs mt-2 leading-relaxed font-normal">
+                        Usamos cookies para melhorar sua experiência. Em conformidade com a LGPD e o ECA Digital, não exibimos anúncios personalizados para menores. Leia nossa <a href="<?php echo home_url('/politica-de-privacidade'); ?>" class="text-laranja hover:underline font-semibold">Política de Privacidade</a>.
+                    </p>
+                </div>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button id="btn-reject-cookies" class="flex-1 bg-slate-750 hover:bg-slate-700 text-gray-300 hover:text-white font-bold py-3 rounded-2xl transition-all duration-200 text-xs uppercase tracking-wider">
+                    Recusar
+                </button>
+                <button id="btn-accept-cookies" class="flex-1 bg-laranja hover:bg-orange-600 text-white font-bold py-3 rounded-2xl transition-all duration-200 text-xs uppercase tracking-wider shadow-lg shadow-laranja/20">
+                    Aceitar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- PWA INSTALL BANNER -->
     <div id="pwa-install-banner" class="fixed bottom-4 left-4 right-4 bg-slate-800 border border-laranja/30 rounded-2xl p-4 shadow-2xl transform translate-y-full transition-transform duration-500 z-50 hidden md:max-w-md md:left-auto">
         <div class="flex items-center gap-4">
@@ -52,6 +77,46 @@
     <?php wp_footer(); ?>
 
     <script>
+        // Lógica de Cookies (LGPD & Google Consent Mode)
+        const cookieBanner = document.getElementById('lgpd-cookie-banner');
+        const btnAccept = document.getElementById('btn-accept-cookies');
+        const btnReject = document.getElementById('btn-reject-cookies');
+
+        function setCookieConsent(consent) {
+            localStorage.setItem('lgpd_cookie_consent', consent);
+            if (typeof gtag === 'function') {
+                gtag('consent', 'update', {
+                    'ad_storage': consent === 'accepted' ? 'granted' : 'denied',
+                    'ad_user_data': consent === 'accepted' ? 'granted' : 'denied',
+                    'ad_personalization': consent === 'accepted' ? 'granted' : 'denied',
+                    'analytics_storage': consent === 'accepted' ? 'granted' : 'denied'
+                });
+            }
+            if (consent === 'rejected') {
+                window.adsbygoogle = window.adsbygoogle || [];
+                window.adsbygoogle.requestNonPersonalizedAds = 1;
+            }
+            if (cookieBanner) {
+                cookieBanner.classList.add('translate-y-full');
+                setTimeout(() => cookieBanner.classList.add('hidden'), 500);
+            }
+        }
+
+        window.addEventListener('load', () => {
+            const consent = localStorage.getItem('lgpd_cookie_consent');
+            if (!consent && cookieBanner) {
+                cookieBanner.classList.remove('hidden');
+                setTimeout(() => cookieBanner.classList.remove('translate-y-full'), 1000);
+            }
+        });
+
+        if (btnAccept) {
+            btnAccept.addEventListener('click', () => setCookieConsent('accepted'));
+        }
+        if (btnReject) {
+            btnReject.addEventListener('click', () => setCookieConsent('rejected'));
+        }
+
         // Menu Mobile
         const menuBtn = document.getElementById('menu-btn');
         const mobileMenu = document.getElementById('mobile-menu');
